@@ -21,33 +21,22 @@ import (
 type LibvirtProvisioner struct {
 	logger     *slog.Logger
 	conn       *libvirt.Libvirt
-	config     *Config
 	overlayDir string
 	network    string
 }
 
 // LibvirtConfig configures the libvirt provisioner.
 type LibvirtConfig struct {
-	// Config contains image definitions and label mappings.
-	Config *Config
-
 	// OverlayDir is where ephemeral qcow2 overlay files are created.
-	// Defaults to the directory of the first image path.
 	OverlayDir string
 
 	// Network is the libvirt network name. Defaults to "default".
 	Network string
-
-	// LibvirtURI is the libvirt connection URI. Defaults to local QEMU system.
-	LibvirtURI string
 }
 
 func NewLibvirtProvisioner(logger *slog.Logger, cfg LibvirtConfig) (*LibvirtProvisioner, error) {
 	if cfg.Network == "" {
 		cfg.Network = "default"
-	}
-	if cfg.OverlayDir == "" && len(cfg.Config.Images) > 0 {
-		cfg.OverlayDir = filepath.Dir(cfg.Config.Images[0].Path)
 	}
 
 	// Connect to libvirtd via Unix socket
@@ -66,18 +55,16 @@ func NewLibvirtProvisioner(logger *slog.Logger, cfg LibvirtConfig) (*LibvirtProv
 	return &LibvirtProvisioner{
 		logger:     logger,
 		conn:       l,
-		config:     cfg.Config,
 		overlayDir: cfg.OverlayDir,
 		network:    cfg.Network,
 	}, nil
 }
 
 func (p *LibvirtProvisioner) Start(ctx context.Context, req *RunnerRequest) error {
-	// Find the image for this job's labels
-	img, err := p.config.MatchImage(req.Labels)
-	if err != nil {
-		return err
+	if req.Image == nil || req.Image.Libvirt == nil {
+		return fmt.Errorf("no libvirt image config for runner %s", req.Name)
 	}
+	img := req.Image.Libvirt
 
 	overlayPath := filepath.Join(p.overlayDir, req.Name+".qcow2")
 
@@ -294,7 +281,7 @@ var domainTmpl = template.Must(template.New("domain").Parse(`<domain type='kvm'>
   </devices>
 </domain>`))
 
-func renderDomainXML(name, overlayPath string, img *ImageConfig, network string) (string, error) {
+func renderDomainXML(name, overlayPath string, img *LibvirtImage, network string) (string, error) {
 	params := domainXMLParams{
 		Name:        name,
 		OverlayPath: overlayPath,

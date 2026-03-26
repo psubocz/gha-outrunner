@@ -18,17 +18,9 @@ import (
 type DockerProvisioner struct {
 	logger *slog.Logger
 	client *client.Client
-	image  string
 }
 
-// DockerConfig configures the Docker provisioner.
-type DockerConfig struct {
-	// Image is the Docker image to use for runners.
-	// Must have the GitHub Actions runner pre-installed at /actions-runner.
-	Image string
-}
-
-func NewDockerProvisioner(logger *slog.Logger, cfg DockerConfig) (*DockerProvisioner, error) {
+func NewDockerProvisioner(logger *slog.Logger) (*DockerProvisioner, error) {
 	opts := []client.Opt{client.FromEnv, client.WithAPIVersionNegotiation()}
 
 	// If DOCKER_HOST isn't set, ask the docker CLI for the active context's endpoint.
@@ -47,7 +39,6 @@ func NewDockerProvisioner(logger *slog.Logger, cfg DockerConfig) (*DockerProvisi
 	return &DockerProvisioner{
 		logger: logger,
 		client: cli,
-		image:  cfg.Image,
 	}, nil
 }
 
@@ -72,11 +63,16 @@ func dockerHostFromContext() string {
 }
 
 func (d *DockerProvisioner) Start(ctx context.Context, req *RunnerRequest) error {
+	if req.Image == nil || req.Image.Docker == nil {
+		return fmt.Errorf("no docker image config for runner %s", req.Name)
+	}
+	img := req.Image.Docker.Image
+
 	// Pull image only if not available locally
-	_, _, err := d.client.ImageInspectWithRaw(ctx, d.image)
+	_, _, err := d.client.ImageInspectWithRaw(ctx, img)
 	if err != nil {
-		d.logger.Debug("Pulling image", slog.String("image", d.image))
-		reader, pullErr := d.client.ImagePull(ctx, d.image, image.PullOptions{})
+		d.logger.Debug("Pulling image", slog.String("image", img))
+		reader, pullErr := d.client.ImagePull(ctx, img, image.PullOptions{})
 		if pullErr != nil {
 			return fmt.Errorf("pull image: %w", pullErr)
 		}
@@ -86,7 +82,7 @@ func (d *DockerProvisioner) Start(ctx context.Context, req *RunnerRequest) error
 
 	resp, err := d.client.ContainerCreate(ctx,
 		&container.Config{
-			Image: d.image,
+			Image: img,
 			Cmd:   []string{"./run.sh", "--jitconfig", req.JITConfig},
 			Labels: map[string]string{
 				"outrunner":      "true",
@@ -108,6 +104,7 @@ func (d *DockerProvisioner) Start(ctx context.Context, req *RunnerRequest) error
 
 	d.logger.Info("Container started",
 		slog.String("name", req.Name),
+		slog.String("image", img),
 		slog.String("id", resp.ID[:12]),
 	)
 	return nil

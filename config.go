@@ -12,13 +12,37 @@ type Config struct {
 	Images []ImageConfig `yaml:"images"`
 }
 
-// ImageConfig defines a VM image and the labels it satisfies.
+// ImageConfig defines a runner environment and the label it satisfies.
+// Exactly one of Docker, Libvirt (or future backends) must be set.
 type ImageConfig struct {
-	Labels    []string `yaml:"labels"`
-	Path      string   `yaml:"path"`
-	RunnerCmd string   `yaml:"runner_cmd"`
-	CPUs      int      `yaml:"cpus"`
-	MemoryMB  int      `yaml:"memory"`
+	Label   string         `yaml:"label"`
+	Docker  *DockerImage   `yaml:"docker,omitempty"`
+	Libvirt *LibvirtImage  `yaml:"libvirt,omitempty"`
+}
+
+// DockerImage configures a Docker-based runner.
+type DockerImage struct {
+	Image string `yaml:"image"`
+}
+
+// LibvirtImage configures a libvirt/QEMU-based runner.
+type LibvirtImage struct {
+	Path      string `yaml:"path"`
+	RunnerCmd string `yaml:"runner_cmd"`
+	CPUs      int    `yaml:"cpus"`
+	MemoryMB  int    `yaml:"memory"`
+}
+
+// ProviderType returns which provisioner backend this image uses.
+func (img *ImageConfig) ProviderType() string {
+	switch {
+	case img.Docker != nil:
+		return "docker"
+	case img.Libvirt != nil:
+		return "libvirt"
+	default:
+		return ""
+	}
 }
 
 // LoadConfig reads and parses a config file.
@@ -34,19 +58,30 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	for i := range cfg.Images {
-		if cfg.Images[i].CPUs == 0 {
-			cfg.Images[i].CPUs = 4
+		img := &cfg.Images[i]
+
+		if img.Label == "" {
+			return nil, fmt.Errorf("image %d: label is required", i)
 		}
-		if cfg.Images[i].MemoryMB == 0 {
-			cfg.Images[i].MemoryMB = 8192
+		if img.ProviderType() == "" {
+			return nil, fmt.Errorf("image %q: must specify docker or libvirt", img.Label)
+		}
+
+		// Apply defaults for libvirt images
+		if img.Libvirt != nil {
+			if img.Libvirt.CPUs == 0 {
+				img.Libvirt.CPUs = 4
+			}
+			if img.Libvirt.MemoryMB == 0 {
+				img.Libvirt.MemoryMB = 8192
+			}
 		}
 	}
 
 	return &cfg, nil
 }
 
-// MatchImage finds the best matching image for the given job labels.
-// The image whose labels are the largest subset of the job labels wins.
+// MatchImage finds the image whose label appears in the job labels.
 // Returns an error if no image matches.
 func (c *Config) MatchImage(jobLabels []string) (*ImageConfig, error) {
 	jobSet := make(map[string]bool, len(jobLabels))
@@ -54,31 +89,40 @@ func (c *Config) MatchImage(jobLabels []string) (*ImageConfig, error) {
 		jobSet[l] = true
 	}
 
-	var best *ImageConfig
-	bestCount := -1
-
 	for i := range c.Images {
-		img := &c.Images[i]
-
-		// All image labels must be present in the job labels
-		matched := 0
-		for _, l := range img.Labels {
-			if !jobSet[l] {
-				matched = -1
-				break
-			}
-			matched++
-		}
-
-		if matched > bestCount {
-			bestCount = matched
-			best = img
+		if jobSet[c.Images[i].Label] {
+			return &c.Images[i], nil
 		}
 	}
 
-	if best == nil {
-		return nil, fmt.Errorf("no image matches labels %v", jobLabels)
-	}
+	return nil, fmt.Errorf("no image matches labels %v", jobLabels)
+}
 
-	return best, nil
+// AllLabels returns all unique image labels (for scale set registration).
+func (c *Config) AllLabels() []string {
+	var labels []string
+	for _, img := range c.Images {
+		labels = append(labels, img.Label)
+	}
+	return labels
+}
+
+// NeedsDocker returns true if any image uses the Docker backend.
+func (c *Config) NeedsDocker() bool {
+	for _, img := range c.Images {
+		if img.Docker != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// NeedsLibvirt returns true if any image uses the libvirt backend.
+func (c *Config) NeedsLibvirt() bool {
+	for _, img := range c.Images {
+		if img.Libvirt != nil {
+			return true
+		}
+	}
+	return false
 }

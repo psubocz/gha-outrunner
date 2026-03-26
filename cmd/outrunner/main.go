@@ -20,23 +20,19 @@ var cfg struct {
 	Name       string
 	Token      string
 	MaxRunners int
-
-	// Docker-specific
-	Image string
-
-	// Libvirt-specific
 	ConfigFile string
-
-	// Provisioner selection
-	Provisioner string
 }
 
 var rootCmd = &cobra.Command{
 	Use:   "outrunner",
 	Short: "Ephemeral GitHub Actions runners — no Kubernetes required",
-	Long: `outrunner provisions ephemeral Docker containers (or VMs) for each
+	Long: `outrunner provisions ephemeral Docker containers and/or VMs for each
 GitHub Actions job. It uses the scaleset API to register as an autoscaling
-runner group, then creates and destroys runner environments on demand.`,
+runner group, then creates and destroys runner environments on demand.
+
+Configure images in a YAML config file. Each image declares labels it
+satisfies and which backend (docker, libvirt) to use. Job labels are
+matched against image labels to select the right environment.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := signal.NotifyContext(cmd.Context(), os.Interrupt)
 		defer cancel()
@@ -47,19 +43,14 @@ runner group, then creates and destroys runner environments on demand.`,
 func init() {
 	f := rootCmd.Flags()
 	f.StringVar(&cfg.URL, "url", "", "Repository or org URL (e.g. https://github.com/owner/repo)")
-	f.StringVar(&cfg.Name, "name", "outrunner", "Scale set name (used as runs-on label)")
+	f.StringVar(&cfg.Name, "name", "outrunner", "Scale set name")
 	f.StringVar(&cfg.Token, "token", "", "GitHub PAT (fine-grained, Administration read/write)")
 	f.IntVar(&cfg.MaxRunners, "max-runners", 2, "Maximum concurrent runners")
-	f.StringVar(&cfg.Provisioner, "provisioner", "docker", "Provisioner backend: docker or libvirt")
-
-	// Docker
-	f.StringVar(&cfg.Image, "image", "ghcr.io/actions/actions-runner:latest", "Docker image for runners (docker provisioner)")
-
-	// Libvirt
-	f.StringVar(&cfg.ConfigFile, "config", "", "Config file path (required for libvirt provisioner)")
+	f.StringVar(&cfg.ConfigFile, "config", "", "Config file path (YAML)")
 
 	rootCmd.MarkFlagRequired("url")
 	rootCmd.MarkFlagRequired("token")
+	rootCmd.MarkFlagRequired("config")
 }
 
 func main() {
@@ -71,6 +62,13 @@ func main() {
 func run(ctx context.Context) error {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
+	// Load config
+	config, err := outrunner.LoadConfig(cfg.ConfigFile)
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+	logger.Info("Loaded config", slog.Int("images", len(config.Images)))
+
 	// Create scaleset client
 	client, err := scaleset.NewClientWithPersonalAccessToken(scaleset.NewClientWithPersonalAccessTokenConfig{
 		GitHubConfigURL:     cfg.URL,
@@ -78,6 +76,12 @@ func run(ctx context.Context) error {
 	})
 	if err != nil {
 		return fmt.Errorf("create scaleset client: %w", err)
+	}
+
+	// Register all image labels on the scale set
+	var labels []scaleset.Label
+	for _, l := range config.AllLabels() {
+		labels = append(labels, scaleset.Label{Name: l, Type: "User"})
 	}
 
 	// Get or create scale set
@@ -88,9 +92,7 @@ func run(ctx context.Context) error {
 		scaleSet, err = client.CreateRunnerScaleSet(ctx, &scaleset.RunnerScaleSet{
 			Name:          cfg.Name,
 			RunnerGroupID: 1,
-			Labels: []scaleset.Label{
-				{Name: cfg.Name, Type: "User"},
-			},
+			Labels:        labels,
 			RunnerSetting: scaleset.RunnerSetting{
 				DisableUpdate: true,
 			},
@@ -110,12 +112,32 @@ func run(ctx context.Context) error {
 		}
 	}()
 
-	// Create provisioner
-	prov, err := createProvisioner(logger)
-	if err != nil {
-		return fmt.Errorf("create provisioner: %w", err)
+	// Create multi-provisioner with backends based on config
+	multi := outrunner.NewMultiProvisioner(logger.WithGroup("provisioner"), config)
+
+	if config.NeedsDocker() {
+		prov, err := outrunner.NewDockerProvisioner(logger.WithGroup("docker"))
+		if err != nil {
+			return fmt.Errorf("create docker provisioner: %w", err)
+		}
+		multi.Register("docker", prov)
+		logger.Info("Docker provisioner initialized")
 	}
-	defer prov.Close()
+
+	if config.NeedsLibvirt() {
+		prov, err := outrunner.NewLibvirtProvisioner(
+			logger.WithGroup("libvirt"),
+			outrunner.LibvirtConfig{},
+		)
+		if err != nil {
+			return fmt.Errorf("create libvirt provisioner: %w", err)
+		}
+		prov.Cleanup(cfg.Name + "-")
+		multi.Register("libvirt", prov)
+		logger.Info("Libvirt provisioner initialized")
+	}
+
+	defer multi.Close()
 
 	// Create message session
 	hostname, _ := os.Hostname()
@@ -142,12 +164,11 @@ func run(ctx context.Context) error {
 	// Create scaler
 	scaler := outrunner.NewScaler(
 		logger.WithGroup("scaler"),
-		client, scaleSet.ID, cfg.MaxRunners, prov,
+		client, scaleSet.ID, cfg.MaxRunners, multi,
 	)
 
 	logger.Info("Listening for jobs",
-		slog.String("runsOn", cfg.Name),
-		slog.String("provisioner", cfg.Provisioner),
+		slog.String("scaleSet", cfg.Name),
 		slog.Int("maxRunners", cfg.MaxRunners),
 	)
 
@@ -162,36 +183,4 @@ func run(ctx context.Context) error {
 
 	logger.Info("Shut down cleanly")
 	return nil
-}
-
-func createProvisioner(logger *slog.Logger) (outrunner.Provisioner, error) {
-	switch cfg.Provisioner {
-	case "docker":
-		return outrunner.NewDockerProvisioner(
-			logger.WithGroup("docker"),
-			outrunner.DockerConfig{Image: cfg.Image},
-		)
-
-	case "libvirt":
-		if cfg.ConfigFile == "" {
-			return nil, fmt.Errorf("--config is required for libvirt provisioner")
-		}
-		config, err := outrunner.LoadConfig(cfg.ConfigFile)
-		if err != nil {
-			return nil, err
-		}
-		prov, err := outrunner.NewLibvirtProvisioner(
-			logger.WithGroup("libvirt"),
-			outrunner.LibvirtConfig{Config: config},
-		)
-		if err != nil {
-			return nil, err
-		}
-		// Clean up orphaned VMs from previous runs
-		prov.Cleanup(cfg.Name + "-")
-		return prov, nil
-
-	default:
-		return nil, fmt.Errorf("unknown provisioner: %s", cfg.Provisioner)
-	}
 }
