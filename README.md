@@ -1,6 +1,6 @@
 # gha-outrunner
 
-Ephemeral GitHub Actions runners — no Kubernetes required.
+Ephemeral GitHub Actions runners, no Kubernetes required.
 
 ![How gha-outrunner works](docs/info.png)
 
@@ -8,35 +8,15 @@ outrunner provisions fresh Docker containers or VMs for each GitHub Actions job,
 
 **Why?** GitHub's [Actions Runner Controller (ARC)](https://github.com/actions/actions-runner-controller) requires Kubernetes. If you're running on bare metal or a simple VPS, you shouldn't need a cluster just to get ephemeral runners. outrunner gives you the same isolation guarantees with Docker, libvirt, or Tart.
 
-## Status
+## Provisioners
 
-Early development. All three provisioners tested end-to-end.
+| Provisioner | Host OS | Runner OS | How it works |
+|-------------|---------|-----------|--------------|
+| Docker | Linux, macOS | Linux | Container per job. Fastest startup. |
+| libvirt | Linux | Windows, Linux | KVM VM from qcow2 golden image with CoW overlays. QEMU Guest Agent for command execution. |
+| Tart | macOS (Apple Silicon) | macOS, Linux (ARM64) | VM clone per job. Tart guest agent for command execution. |
 
 ## Quick Start
-
-Create a config file:
-
-```yaml
-# outrunner.yml
-images:
-  - label: linux
-    docker:
-      image: my-runner:latest
-
-  - label: windows
-    libvirt:
-      path: /var/lib/libvirt/images/ci-runners/windows-builder.qcow2
-      runner_cmd: 'C:\actions-runner\run.cmd'
-      cpus: 4
-      memory: 8192
-
-  - label: macos
-    tart:
-      image: ghcr.io/cirruslabs/macos-sequoia-base:latest
-      runner_cmd: /actions-runner/run.sh
-      cpus: 4
-      memory: 8192
-```
 
 Build and run:
 
@@ -50,42 +30,51 @@ go build -o outrunner ./cmd/outrunner
   --max-runners 2
 ```
 
-Then in your workflow:
+See the [tutorials](#tutorials) for step-by-step setup guides for each backend.
 
-```yaml
-jobs:
-  build-linux:
-    runs-on: linux
-    steps:
-      - run: echo "Running in an ephemeral container!"
+## Documentation
 
-  build-windows:
-    runs-on: windows
-    steps:
-      - run: echo "Running in an ephemeral VM!"
+### Tutorials
 
-  build-macos:
-    runs-on: macos
-    steps:
-      - run: echo "Running in a macOS VM!"
-```
+Step-by-step guides to get your first runner working.
 
-## Provisioners
+- [Docker runner on Linux](docs/tutorial/docker-linux.md)
+- [Docker runner on macOS](docs/tutorial/docker-macos.md)
+- [Tart Linux runner on macOS](docs/tutorial/tart-linux-runner.md) (ARM64)
+- [Tart macOS runner on macOS](docs/tutorial/tart-macos-runner.md)
+- [Windows VM runner on Linux](docs/tutorial/libvirt-windows.md) (libvirt/KVM)
 
-| Provisioner | Platform | How it works |
-|-------------|----------|--------------|
-| Docker | Any (Linux, macOS, Windows) | Creates a container per job. Fastest startup. |
-| libvirt | Linux servers (KVM/QEMU) | Boots a VM from a qcow2 golden image using copy-on-write overlays. Uses QEMU Guest Agent for command execution — no SSH/WinRM needed. |
-| Tart | macOS (Apple Silicon) | Clones a VM from an OCI image. Uses Tart's guest agent (`tart exec`) for command execution. |
+### How-to Guides
 
-All provisioners follow the same pattern: create environment → start runner → destroy after job.
+Solutions for specific tasks.
 
-### Guest Agents
+- [Run multiple backends together](docs/howto/mixed-backends.md)
+- [Deploy as a systemd service](docs/howto/systemd-service.md) (Linux)
+- [Deploy as a launchd service](docs/howto/launchd-service.md) (macOS)
+- [Build a custom Docker runner image](docs/howto/custom-docker-image.md)
+- [Build a custom Windows VM image](docs/howto/custom-windows-image.md)
+- [Build a custom Tart macOS image](docs/howto/custom-tart-macos-image.md)
+- [Build a custom Tart Linux image](docs/howto/custom-tart-linux-image.md)
+- [Set up for an organization](docs/howto/organization-setup.md)
+- [Update runner images without downtime](docs/howto/update-runner-images.md)
 
-The libvirt and Tart provisioners use guest agents instead of SSH or WinRM to execute commands inside VMs. This means no network configuration, no credentials, no IP discovery — the agent communicates over a host-guest channel (virtio-serial for QEMU, native for Tart).
+### Reference
 
-- **libvirt**: [QEMU Guest Agent](https://wiki.qemu.org/Features/GuestAgent) — must be installed in the golden image (included by default in [rgl/windows-vagrant](https://github.com/rgl/windows-vagrant) images)
-- **Tart**: [Tart Guest Agent](https://github.com/cirruslabs/tart-guest-agent) — pre-installed in all [Cirrus Labs](https://github.com/cirruslabs) images
+Technical specifications.
+
+- [CLI reference](docs/reference/cli.md)
+- [Configuration reference](docs/reference/configuration.md)
+- [Provisioner reference](docs/reference/provisioners.md)
+- [Runner image requirements](docs/reference/image-requirements.md)
+
+### Explanation
+
+Background and design decisions.
+
+- [Architecture](docs/explanation/architecture.md)
+- [Why outrunner](docs/explanation/why-outrunner.md)
+- [Security model](docs/explanation/security.md)
+- [How label matching works](docs/explanation/label-matching.md)
 
 ## License
 
