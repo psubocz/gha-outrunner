@@ -1,0 +1,9 @@
+# macOS VM via Tart (Apple Silicon only).
+# Requires: tart installed, OCI image or local VM available.
+images:
+  - label: macos
+    tart:
+      image: ghcr.io/cirruslabs/macos-sequoia-base:latest
+      runner_cmd: /actions-runner/run.sh
+      cpus: 4
+      memory: 8192

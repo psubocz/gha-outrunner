@@ -1,0 +1,9 @@
+# Windows VM via libvirt/QEMU.
+# Requires: libvirtd running, qcow2 golden image with QEMU Guest Agent.
+images:
+  - label: windows
+    libvirt:
+      path: /var/lib/libvirt/images/ci-runners/windows-builder.qcow2
+      runner_cmd: 'C:\actions-runner\run.cmd'
+      cpus: 4
+      memory: 8192

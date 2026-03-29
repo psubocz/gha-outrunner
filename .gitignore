@@ -1,5 +1,12 @@
 # Built binaries
 /outrunner
+/outrunner-linux-*
+/outrunner-darwin-*
 /cmd/outrunner/outrunner
 *.exe
+
+# Test configs (user-specific)
 test-*.yml
+
+# goreleaser
+/dist/

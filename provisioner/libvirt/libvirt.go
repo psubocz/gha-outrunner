@@ -1,11 +1,10 @@
-package outrunner
+package libvirt
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,23 +13,14 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/digitalocean/go-libvirt"
+	outrunner "github.com/psubocz/gha-outrunner"
+
+	golibvirt "github.com/digitalocean/go-libvirt"
+	"github.com/digitalocean/go-libvirt/socket/dialers"
 )
 
-// LibvirtProvisioner creates ephemeral KVM/QEMU VMs as GitHub Actions runners.
-// Uses QEMU Guest Agent for command execution (no SSH/WinRM needed).
-type LibvirtProvisioner struct {
-	logger     *slog.Logger
-	conn       *libvirt.Libvirt
-	overlayDir string
-	network    string
-
-	mu       sync.Mutex
-	overlays map[string]string // runner name -> overlay path
-}
-
-// LibvirtConfig configures the libvirt provisioner.
-type LibvirtConfig struct {
+// Config configures the libvirt provisioner.
+type Config struct {
 	// OverlayDir is where ephemeral qcow2 overlay files are created.
 	OverlayDir string
 
@@ -38,25 +28,31 @@ type LibvirtConfig struct {
 	Network string
 }
 
-func NewLibvirtProvisioner(logger *slog.Logger, cfg LibvirtConfig) (*LibvirtProvisioner, error) {
+// Provisioner creates ephemeral KVM/QEMU VMs as GitHub Actions runners.
+// Uses QEMU Guest Agent for command execution (no SSH/WinRM needed).
+type Provisioner struct {
+	logger     *slog.Logger
+	conn       *golibvirt.Libvirt
+	overlayDir string
+	network    string
+
+	mu       sync.Mutex
+	overlays map[string]string // runner name -> overlay path
+}
+
+func New(logger *slog.Logger, cfg Config) (*Provisioner, error) {
 	if cfg.Network == "" {
 		cfg.Network = "default"
 	}
 
 	// Connect to libvirtd via Unix socket
 	sockPath := "/var/run/libvirt/libvirt-sock"
-	c, err := net.DialTimeout("unix", sockPath, 5*time.Second)
-	if err != nil {
-		return nil, fmt.Errorf("connect to libvirtd at %s: %w", sockPath, err)
-	}
-
-	l := libvirt.New(c)
+	l := golibvirt.NewWithDialer(dialers.NewLocal(dialers.WithSocket(sockPath)))
 	if err := l.Connect(); err != nil {
-		c.Close()
-		return nil, fmt.Errorf("libvirt handshake: %w", err)
+		return nil, fmt.Errorf("libvirt connect to %s: %w", sockPath, err)
 	}
 
-	return &LibvirtProvisioner{
+	return &Provisioner{
 		logger:     logger,
 		conn:       l,
 		overlayDir: cfg.OverlayDir,
@@ -65,7 +61,7 @@ func NewLibvirtProvisioner(logger *slog.Logger, cfg LibvirtConfig) (*LibvirtProv
 	}, nil
 }
 
-func (p *LibvirtProvisioner) Start(ctx context.Context, req *RunnerRequest) error {
+func (p *Provisioner) Start(ctx context.Context, req *outrunner.RunnerRequest) error {
 	if req.Image == nil || req.Image.Libvirt == nil {
 		return fmt.Errorf("no libvirt image config for runner %s", req.Name)
 	}
@@ -90,7 +86,7 @@ func (p *LibvirtProvisioner) Start(ctx context.Context, req *RunnerRequest) erro
 	// 2. Generate domain XML
 	domainXML, err := renderDomainXML(req.Name, overlayPath, img, p.network)
 	if err != nil {
-		os.Remove(overlayPath)
+		_ = os.Remove(overlayPath)
 		return fmt.Errorf("render domain XML: %w", err)
 	}
 
@@ -98,7 +94,7 @@ func (p *LibvirtProvisioner) Start(ctx context.Context, req *RunnerRequest) erro
 	p.logger.Debug("Creating domain", slog.String("name", req.Name))
 	dom, err := p.conn.DomainCreateXML(domainXML, 0)
 	if err != nil {
-		os.Remove(overlayPath)
+		_ = os.Remove(overlayPath)
 		return fmt.Errorf("create domain: %w", err)
 	}
 
@@ -106,7 +102,7 @@ func (p *LibvirtProvisioner) Start(ctx context.Context, req *RunnerRequest) erro
 	p.logger.Debug("Waiting for guest agent", slog.String("name", req.Name))
 	if err := p.waitForAgent(ctx, dom, 3*time.Minute); err != nil {
 		p.destroyDomain(req.Name)
-		os.Remove(overlayPath)
+		_ = os.Remove(overlayPath)
 		return fmt.Errorf("guest agent not ready: %w", err)
 	}
 
@@ -124,7 +120,7 @@ func (p *LibvirtProvisioner) Start(ctx context.Context, req *RunnerRequest) erro
 	pid, err := p.guestExec(ctx, dom, runnerCmd, []string{"--jitconfig", req.JITConfig})
 	if err != nil {
 		p.destroyDomain(req.Name)
-		os.Remove(overlayPath)
+		_ = os.Remove(overlayPath)
 		return fmt.Errorf("guest-exec: %w", err)
 	}
 
@@ -140,7 +136,7 @@ func (p *LibvirtProvisioner) Start(ctx context.Context, req *RunnerRequest) erro
 	return nil
 }
 
-func (p *LibvirtProvisioner) Stop(ctx context.Context, name string) error {
+func (p *Provisioner) Stop(ctx context.Context, name string) error {
 	p.logger.Debug("Stopping VM", slog.String("name", name))
 	p.destroyDomain(name)
 
@@ -150,18 +146,18 @@ func (p *LibvirtProvisioner) Stop(ctx context.Context, name string) error {
 	p.mu.Unlock()
 
 	if ok {
-		os.Remove(overlayPath)
+		_ = os.Remove(overlayPath)
 	}
 
 	return nil
 }
 
-func (p *LibvirtProvisioner) Close() error {
+func (p *Provisioner) Close() error {
 	return p.conn.Disconnect()
 }
 
 // Cleanup destroys any leftover VMs and overlay files from previous runs.
-func (p *LibvirtProvisioner) Cleanup(prefix string) {
+func (p *Provisioner) Cleanup(prefix string) {
 	domains, _, err := p.conn.ConnectListAllDomains(0, 0)
 	if err != nil {
 		p.logger.Error("Failed to list domains for cleanup", slog.String("error", err.Error()))
@@ -177,12 +173,12 @@ func (p *LibvirtProvisioner) Cleanup(prefix string) {
 		_ = p.conn.DomainDestroy(dom)
 
 		overlayPath := filepath.Join(p.overlayDir, name+".qcow2")
-		os.Remove(overlayPath)
+		_ = os.Remove(overlayPath)
 	}
 }
 
 // destroyDomain force-stops a domain. Idempotent — ignores "not found" errors.
-func (p *LibvirtProvisioner) destroyDomain(name string) {
+func (p *Provisioner) destroyDomain(name string) {
 	dom, err := p.conn.DomainLookupByName(name)
 	if err != nil {
 		return // already gone
@@ -196,7 +192,7 @@ func (p *LibvirtProvisioner) destroyDomain(name string) {
 }
 
 // waitForAgent polls guest-ping until the QEMU guest agent responds.
-func (p *LibvirtProvisioner) waitForAgent(ctx context.Context, dom libvirt.Domain, timeout time.Duration) error {
+func (p *Provisioner) waitForAgent(ctx context.Context, dom golibvirt.Domain, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	ping := `{"execute":"guest-ping"}`
 
@@ -227,7 +223,7 @@ type guestExecResult struct {
 
 // guestExec runs a command inside the VM via the QEMU guest agent.
 // Returns the PID of the started process.
-func (p *LibvirtProvisioner) guestExec(ctx context.Context, dom libvirt.Domain, path string, args []string) (int, error) {
+func (p *Provisioner) guestExec(ctx context.Context, dom golibvirt.Domain, path string, args []string) (int, error) {
 	cmd := map[string]any{
 		"execute": "guest-exec",
 		"arguments": map[string]any{
@@ -300,7 +296,7 @@ var domainTmpl = template.Must(template.New("domain").Parse(`<domain type='kvm'>
   </devices>
 </domain>`))
 
-func renderDomainXML(name, overlayPath string, img *LibvirtImage, network string) (string, error) {
+func renderDomainXML(name, overlayPath string, img *outrunner.LibvirtImage, network string) (string, error) {
 	params := domainXMLParams{
 		Name:        name,
 		OverlayPath: overlayPath,

@@ -1,4 +1,4 @@
-package outrunner
+package docker
 
 import (
 	"context"
@@ -9,18 +9,20 @@ import (
 	"os/exec"
 	"strings"
 
+	outrunner "github.com/psubocz/gha-outrunner"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 )
 
-// DockerProvisioner creates ephemeral Docker containers as GitHub Actions runners.
-type DockerProvisioner struct {
+// Provisioner creates ephemeral Docker containers as GitHub Actions runners.
+type Provisioner struct {
 	logger *slog.Logger
 	client *client.Client
 }
 
-func NewDockerProvisioner(logger *slog.Logger) (*DockerProvisioner, error) {
+func New(logger *slog.Logger) (*Provisioner, error) {
 	opts := []client.Opt{client.FromEnv, client.WithAPIVersionNegotiation()}
 
 	// If DOCKER_HOST isn't set, ask the docker CLI for the active context's endpoint.
@@ -36,7 +38,7 @@ func NewDockerProvisioner(logger *slog.Logger) (*DockerProvisioner, error) {
 		return nil, fmt.Errorf("docker client: %w", err)
 	}
 
-	return &DockerProvisioner{
+	return &Provisioner{
 		logger: logger,
 		client: cli,
 	}, nil
@@ -62,22 +64,22 @@ func dockerHostFromContext() string {
 	return host
 }
 
-func (d *DockerProvisioner) Start(ctx context.Context, req *RunnerRequest) error {
+func (d *Provisioner) Start(ctx context.Context, req *outrunner.RunnerRequest) error {
 	if req.Image == nil || req.Image.Docker == nil {
 		return fmt.Errorf("no docker image config for runner %s", req.Name)
 	}
 	img := req.Image.Docker.Image
 
 	// Pull image only if not available locally
-	_, _, err := d.client.ImageInspectWithRaw(ctx, img)
+	_, err := d.client.ImageInspect(ctx, img)
 	if err != nil {
 		d.logger.Debug("Pulling image", slog.String("image", img))
 		reader, pullErr := d.client.ImagePull(ctx, img, image.PullOptions{})
 		if pullErr != nil {
 			return fmt.Errorf("pull image: %w", pullErr)
 		}
-		io.Copy(io.Discard, reader)
-		reader.Close()
+		_, _ = io.Copy(io.Discard, reader)
+		_ = reader.Close()
 	}
 
 	resp, err := d.client.ContainerCreate(ctx,
@@ -110,7 +112,7 @@ func (d *DockerProvisioner) Start(ctx context.Context, req *RunnerRequest) error
 	return nil
 }
 
-func (d *DockerProvisioner) Stop(ctx context.Context, name string) error {
+func (d *Provisioner) Stop(ctx context.Context, name string) error {
 	d.logger.Debug("Stopping container", slog.String("name", name))
 	err := d.client.ContainerStop(ctx, name, container.StopOptions{})
 	if err != nil {
@@ -123,6 +125,6 @@ func (d *DockerProvisioner) Stop(ctx context.Context, name string) error {
 	return nil
 }
 
-func (d *DockerProvisioner) Close() error {
+func (d *Provisioner) Close() error {
 	return d.client.Close()
 }

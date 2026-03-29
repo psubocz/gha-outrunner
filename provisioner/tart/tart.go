@@ -1,4 +1,4 @@
-package outrunner
+package tart
 
 import (
 	"context"
@@ -9,24 +9,26 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	outrunner "github.com/psubocz/gha-outrunner"
 )
 
-// TartProvisioner creates ephemeral Tart VMs as GitHub Actions runners.
+// Provisioner creates ephemeral Tart VMs as GitHub Actions runners.
 // Uses `tart exec` via the guest agent for command execution.
-type TartProvisioner struct {
+type Provisioner struct {
 	logger  *slog.Logger
 	mu      sync.Mutex
 	running map[string]context.CancelFunc
 }
 
-func NewTartProvisioner(logger *slog.Logger) *TartProvisioner {
-	return &TartProvisioner{
+func New(logger *slog.Logger) *Provisioner {
+	return &Provisioner{
 		logger:  logger,
 		running: make(map[string]context.CancelFunc),
 	}
 }
 
-func (t *TartProvisioner) Start(ctx context.Context, req *RunnerRequest) error {
+func (t *Provisioner) Start(ctx context.Context, req *outrunner.RunnerRequest) error {
 	if req.Image == nil || req.Image.Tart == nil {
 		return fmt.Errorf("no tart image config for runner %s", req.Name)
 	}
@@ -70,7 +72,7 @@ func (t *TartProvisioner) Start(ctx context.Context, req *RunnerRequest) error {
 	// 4. Wait for guest agent
 	t.logger.Debug("Waiting for guest agent", slog.String("name", req.Name))
 	if err := t.waitForAgent(ctx, req.Name, 3*time.Minute); err != nil {
-		t.Stop(ctx, req.Name)
+		_ = t.Stop(ctx, req.Name)
 		return fmt.Errorf("guest agent not ready: %w", err)
 	}
 
@@ -102,7 +104,7 @@ func (t *TartProvisioner) Start(ctx context.Context, req *RunnerRequest) error {
 	return nil
 }
 
-func (t *TartProvisioner) Stop(ctx context.Context, name string) error {
+func (t *Provisioner) Stop(ctx context.Context, name string) error {
 	t.logger.Debug("Stopping VM", slog.String("name", name))
 
 	t.mu.Lock()
@@ -113,14 +115,14 @@ func (t *TartProvisioner) Stop(ctx context.Context, name string) error {
 	t.mu.Unlock()
 
 	// Stop the VM (idempotent)
-	exec.CommandContext(ctx, "tart", "stop", name).Run()
+	_ = exec.CommandContext(ctx, "tart", "stop", name).Run()
 	// Delete the clone
 	t.deleteVM(name)
 
 	return nil
 }
 
-func (t *TartProvisioner) Close() error {
+func (t *Provisioner) Close() error {
 	t.mu.Lock()
 	for name, cancel := range t.running {
 		cancel()
@@ -131,7 +133,7 @@ func (t *TartProvisioner) Close() error {
 }
 
 // Cleanup removes orphaned VMs from previous runs.
-func (t *TartProvisioner) Cleanup(prefix string) {
+func (t *Provisioner) Cleanup(prefix string) {
 	out, err := exec.Command("tart", "list", "--quiet").Output()
 	if err != nil {
 		t.logger.Error("Failed to list VMs for cleanup", slog.String("error", err.Error()))
@@ -144,12 +146,12 @@ func (t *TartProvisioner) Cleanup(prefix string) {
 			continue
 		}
 		t.logger.Info("Cleaning up orphaned VM", slog.String("name", name))
-		exec.Command("tart", "stop", name).Run()
-		exec.Command("tart", "delete", name).Run()
+		_ = exec.Command("tart", "stop", name).Run()
+		_ = exec.Command("tart", "delete", name).Run()
 	}
 }
 
-func (t *TartProvisioner) deleteVM(name string) {
+func (t *Provisioner) deleteVM(name string) {
 	if out, err := exec.Command("tart", "delete", name).CombinedOutput(); err != nil {
 		t.logger.Debug("VM delete error (may already be gone)",
 			slog.String("name", name),
@@ -159,7 +161,7 @@ func (t *TartProvisioner) deleteVM(name string) {
 	}
 }
 
-func (t *TartProvisioner) waitForAgent(ctx context.Context, name string, timeout time.Duration) error {
+func (t *Provisioner) waitForAgent(ctx context.Context, name string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	for {
 		if time.Now().After(deadline) {

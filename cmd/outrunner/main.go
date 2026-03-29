@@ -12,6 +12,9 @@ import (
 	"github.com/actions/scaleset/listener"
 	"github.com/google/uuid"
 	outrunner "github.com/psubocz/gha-outrunner"
+	"github.com/psubocz/gha-outrunner/provisioner/docker"
+	"github.com/psubocz/gha-outrunner/provisioner/libvirt"
+	"github.com/psubocz/gha-outrunner/provisioner/tart"
 	"github.com/spf13/cobra"
 )
 
@@ -48,9 +51,9 @@ func init() {
 	f.IntVar(&cfg.MaxRunners, "max-runners", 2, "Maximum concurrent runners")
 	f.StringVar(&cfg.ConfigFile, "config", "", "Config file path (YAML)")
 
-	rootCmd.MarkFlagRequired("url")
-	rootCmd.MarkFlagRequired("token")
-	rootCmd.MarkFlagRequired("config")
+	_ = rootCmd.MarkFlagRequired("url")
+	_ = rootCmd.MarkFlagRequired("token")
+	_ = rootCmd.MarkFlagRequired("config")
 }
 
 func main() {
@@ -116,7 +119,7 @@ func run(ctx context.Context) error {
 	multi := outrunner.NewMultiProvisioner(logger.WithGroup("provisioner"), config)
 
 	if config.NeedsDocker() {
-		prov, err := outrunner.NewDockerProvisioner(logger.WithGroup("docker"))
+		prov, err := docker.New(logger.WithGroup("docker"))
 		if err != nil {
 			return fmt.Errorf("create docker provisioner: %w", err)
 		}
@@ -125,9 +128,9 @@ func run(ctx context.Context) error {
 	}
 
 	if config.NeedsLibvirt() {
-		prov, err := outrunner.NewLibvirtProvisioner(
+		prov, err := libvirt.New(
 			logger.WithGroup("libvirt"),
-			outrunner.LibvirtConfig{},
+			libvirt.Config{},
 		)
 		if err != nil {
 			return fmt.Errorf("create libvirt provisioner: %w", err)
@@ -138,13 +141,13 @@ func run(ctx context.Context) error {
 	}
 
 	if config.NeedsTart() {
-		prov := outrunner.NewTartProvisioner(logger.WithGroup("tart"))
+		prov := tart.New(logger.WithGroup("tart"))
 		prov.Cleanup(cfg.Name + "-")
 		multi.Register("tart", prov)
 		logger.Info("Tart provisioner initialized")
 	}
 
-	defer multi.Close()
+	defer func() { _ = multi.Close() }()
 
 	// Create message session
 	hostname, _ := os.Hostname()
@@ -156,7 +159,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("create message session: %w", err)
 	}
-	defer sessionClient.Close(context.Background())
+	defer func() { _ = sessionClient.Close(context.Background()) }()
 
 	// Create listener
 	l, err := listener.New(sessionClient, listener.Config{
