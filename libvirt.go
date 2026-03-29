@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -23,6 +24,9 @@ type LibvirtProvisioner struct {
 	conn       *libvirt.Libvirt
 	overlayDir string
 	network    string
+
+	mu       sync.Mutex
+	overlays map[string]string // runner name -> overlay path
 }
 
 // LibvirtConfig configures the libvirt provisioner.
@@ -57,6 +61,7 @@ func NewLibvirtProvisioner(logger *slog.Logger, cfg LibvirtConfig) (*LibvirtProv
 		conn:       l,
 		overlayDir: cfg.OverlayDir,
 		network:    cfg.Network,
+		overlays:   make(map[string]string),
 	}, nil
 }
 
@@ -66,7 +71,12 @@ func (p *LibvirtProvisioner) Start(ctx context.Context, req *RunnerRequest) erro
 	}
 	img := req.Image.Libvirt
 
-	overlayPath := filepath.Join(p.overlayDir, req.Name+".qcow2")
+	// Use configured overlay dir, or system temp
+	overlayDir := p.overlayDir
+	if overlayDir == "" {
+		overlayDir = os.TempDir()
+	}
+	overlayPath := filepath.Join(overlayDir, req.Name+".qcow2")
 
 	// 1. Create qcow2 overlay
 	p.logger.Debug("Creating overlay", slog.String("base", img.Path), slog.String("overlay", overlayPath))
@@ -123,6 +133,10 @@ func (p *LibvirtProvisioner) Start(ctx context.Context, req *RunnerRequest) erro
 		slog.Int("pid", pid),
 	)
 
+	p.mu.Lock()
+	p.overlays[req.Name] = overlayPath
+	p.mu.Unlock()
+
 	return nil
 }
 
@@ -130,8 +144,14 @@ func (p *LibvirtProvisioner) Stop(ctx context.Context, name string) error {
 	p.logger.Debug("Stopping VM", slog.String("name", name))
 	p.destroyDomain(name)
 
-	overlayPath := filepath.Join(p.overlayDir, name+".qcow2")
-	os.Remove(overlayPath)
+	p.mu.Lock()
+	overlayPath, ok := p.overlays[name]
+	delete(p.overlays, name)
+	p.mu.Unlock()
+
+	if ok {
+		os.Remove(overlayPath)
+	}
 
 	return nil
 }
@@ -275,7 +295,6 @@ var domainTmpl = template.Must(template.New("domain").Parse(`<domain type='kvm'>
     <channel type='unix'>
       <target type='virtio' name='org.qemu.guest_agent.0'/>
     </channel>
-    <graphics type='none'/>
     <serial type='pty'/>
     <console type='pty'/>
   </devices>
