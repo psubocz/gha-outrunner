@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -61,6 +63,7 @@ func main() {
 func run(ctx context.Context) error {
 	logger := slog.New(outrunner.NewSimpleHandler(os.Stdout, slog.LevelInfo))
 	listenerLogger := slog.New(outrunner.NewSimpleHandler(os.Stdout, slog.LevelWarn))
+	log.SetOutput(io.Discard)
 
 	config, err := outrunner.LoadConfig(cfg.ConfigFile)
 	if err != nil {
