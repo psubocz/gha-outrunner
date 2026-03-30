@@ -120,7 +120,10 @@ func runWorker(ctx context.Context, logger *slog.Logger, client *scaleset.Client
 	// Get or create scale set
 	logger.Info("Looking for scale set")
 	scaleSet, err := client.GetRunnerScaleSet(ctx, 1, name)
-	if err != nil || scaleSet == nil {
+	if err != nil {
+		return fmt.Errorf("runner %s: get scale set: %w", name, err)
+	}
+	if scaleSet == nil {
 		logger.Info("Creating scale set")
 		scaleSet, err = client.CreateRunnerScaleSet(ctx, &scaleset.RunnerScaleSet{
 			Name:          name,
@@ -184,7 +187,9 @@ func createProvisioner(logger *slog.Logger, runner *outrunner.RunnerConfig) (out
 	case "docker":
 		return docker.New(logger.WithGroup("docker"))
 	case "libvirt":
-		return libvirt.New(logger.WithGroup("libvirt"), libvirt.Config{})
+		return libvirt.New(logger.WithGroup("libvirt"), libvirt.Config{
+			Socket: runner.Libvirt.Socket,
+		})
 	case "tart":
 		return tart.New(logger.WithGroup("tart")), nil
 	default:

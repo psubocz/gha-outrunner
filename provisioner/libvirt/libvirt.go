@@ -26,6 +26,9 @@ type Config struct {
 
 	// Network is the libvirt network name. Defaults to "default".
 	Network string
+
+	// Socket is the libvirtd Unix socket path. Defaults to /var/run/libvirt/libvirt-sock.
+	Socket string
 }
 
 // Provisioner creates ephemeral KVM/QEMU VMs as GitHub Actions runners.
@@ -45,8 +48,12 @@ func New(logger *slog.Logger, cfg Config) (*Provisioner, error) {
 		cfg.Network = "default"
 	}
 
+	if cfg.Socket == "" {
+		cfg.Socket = "/var/run/libvirt/libvirt-sock"
+	}
+
 	// Connect to libvirtd via Unix socket
-	sockPath := "/var/run/libvirt/libvirt-sock"
+	sockPath := cfg.Socket
 	l := golibvirt.NewWithDialer(dialers.NewLocal(dialers.WithSocket(sockPath)))
 	if err := l.Connect(); err != nil {
 		return nil, fmt.Errorf("libvirt connect to %s: %w", sockPath, err)

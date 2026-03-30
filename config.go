@@ -33,6 +33,7 @@ type DockerImage struct {
 type LibvirtImage struct {
 	Path      string `yaml:"path"`
 	RunnerCmd string `yaml:"runner_cmd"`
+	Socket    string `yaml:"socket"`
 	CPUs      int    `yaml:"cpus"`
 	MemoryMB  int    `yaml:"memory"`
 }

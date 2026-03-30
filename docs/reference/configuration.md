@@ -93,6 +93,7 @@ Provisions a KVM/QEMU virtual machine per job using a copy-on-write overlay.
 |-------|------|---------|-------------|
 | `path` | string | (required) | Absolute path to the base qcow2 disk image. This image is never modified; each job gets a CoW overlay. |
 | `runner_cmd` | string | `/actions-runner/run.sh` | Command to execute inside the VM via the QEMU Guest Agent. For Windows: `C:\actions-runner\run.cmd` |
+| `socket` | string | `/var/run/libvirt/libvirt-sock` | Path to the libvirtd Unix socket. |
 | `cpus` | int | `4` | Number of vCPUs allocated to the VM. |
 | `memory` | int | `8192` | Memory in MiB allocated to the VM. |
 

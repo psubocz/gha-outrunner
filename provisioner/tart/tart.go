@@ -57,15 +57,21 @@ func (t *Provisioner) Start(ctx context.Context, req *outrunner.RunnerRequest) e
 
 	go func() {
 		t.logger.Debug("Starting VM", slog.String("name", req.Name))
-		if out, err := exec.CommandContext(runCtx, "tart", "run", "--no-graphics", req.Name).CombinedOutput(); err != nil {
+		cmd := exec.CommandContext(runCtx, "tart", "run", "--no-graphics", req.Name)
+		if err := cmd.Start(); err != nil {
 			if runCtx.Err() == nil {
-				// Unexpected exit, not a cancellation
-				t.logger.Error("VM exited unexpectedly",
+				t.logger.Error("Failed to start VM",
 					slog.String("name", req.Name),
 					slog.String("error", err.Error()),
-					slog.String("output", string(out)),
 				)
 			}
+			return
+		}
+		if err := cmd.Wait(); err != nil && runCtx.Err() == nil {
+			t.logger.Error("VM exited unexpectedly",
+				slog.String("name", req.Name),
+				slog.String("error", err.Error()),
+			)
 		}
 	}()
 
@@ -88,14 +94,22 @@ func (t *Provisioner) Start(ctx context.Context, req *outrunner.RunnerRequest) e
 	)
 
 	go func() {
-		out, err := exec.CommandContext(runCtx, "tart", "exec", req.Name,
+		cmd := exec.CommandContext(runCtx, "tart", "exec", req.Name,
 			runnerCmd, "--jitconfig", req.JITConfig,
-		).CombinedOutput()
-		if err != nil && runCtx.Err() == nil {
+		)
+		if err := cmd.Start(); err != nil {
+			if runCtx.Err() == nil {
+				t.logger.Error("Failed to start runner",
+					slog.String("name", req.Name),
+					slog.String("error", err.Error()),
+				)
+			}
+			return
+		}
+		if err := cmd.Wait(); err != nil && runCtx.Err() == nil {
 			t.logger.Error("Runner exited with error",
 				slog.String("name", req.Name),
 				slog.String("error", err.Error()),
-				slog.String("output", string(out)),
 			)
 		}
 	}()
