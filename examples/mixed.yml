@@ -1,5 +1,8 @@
 # All three backends in one config.
 # Each runner gets its own scale set. GitHub routes jobs by label matching.
+url: https://github.com/your-org/your-repo
+# token_file: /etc/outrunner/token
+
 runners:
   linux:
     labels: [self-hosted, linux, x64]

@@ -1,5 +1,8 @@
 # Windows VM via libvirt/QEMU.
 # Requires: libvirtd running, qcow2 golden image with QEMU Guest Agent.
+url: https://github.com/your-org/your-repo
+# token_file: /etc/outrunner/token
+
 runners:
   windows:
     labels: [self-hosted, windows, x64]

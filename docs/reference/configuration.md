@@ -1,42 +1,64 @@
 # Configuration Reference
 
-outrunner uses a YAML configuration file to define runners. Each entry in the `runners` map defines a named runner with its labels and provisioner backend. Each runner gets its own GitHub scale set.
+outrunner uses a YAML configuration file. Default location: `/etc/outrunner/config.yml` (override with `--config`).
 
 ## Schema
 
 ```yaml
+url: <string>                        # Repository or org URL.
+token_file: <string>                 # Path to a file containing the GitHub token.
+
 runners:
-  <scale-set-name>:            # Required. The key becomes the GitHub scale set name.
-    labels: [<string>, ...]    # Required. Labels registered on this scale set.
-    max_runners: <int>         # Optional. Max concurrent runners for this scale set. Defaults to --max-runners flag.
-    docker:                    # Use Docker backend.
-      image: <string>          # Docker image name or tag.
-      runner_cmd: <string>     # Command to start the runner. Default: ./run.sh
-    libvirt:                   # Use libvirt/KVM backend.
-      path: <string>           # Path to the base qcow2 disk image.
-      runner_cmd: <string>     # Command to start the runner. Default: /actions-runner/run.sh
-      cpus: <int>              # vCPU count. Default: 4
-      memory: <int>            # Memory in MiB. Default: 8192
-    tart:                      # Use Tart backend.
-      image: <string>          # OCI image URL or local VM name.
-      runner_cmd: <string>     # Command to start the runner. Default: /actions-runner/run.sh
-      cpus: <int>              # vCPU count. Default: 4
-      memory: <int>            # Memory in MiB. Default: 8192
+  <scale-set-name>:                  # The key becomes the GitHub scale set name.
+    labels: [<string>, ...]          # Labels registered on this scale set.
+    max_runners: <int>               # Optional. Defaults to --max-runners flag.
+    docker:                          # Use Docker backend.
+      image: <string>                # Docker image name or tag.
+      runner_cmd: <string>           # Default: ./run.sh
+    libvirt:                         # Use libvirt/KVM backend.
+      path: <string>                 # Path to the base qcow2 disk image.
+      runner_cmd: <string>           # Default: /actions-runner/run.sh
+      socket: <string>               # Default: /var/run/libvirt/libvirt-sock
+      cpus: <int>                    # Default: 4
+      memory: <int>                  # Default: 8192 (MiB)
+    tart:                            # Use Tart backend.
+      image: <string>                # OCI image URL or local VM name.
+      runner_cmd: <string>           # Default: /actions-runner/run.sh
+      cpus: <int>                    # Default: 4
+      memory: <int>                  # Default: 8192 (MiB)
 ```
 
-## Rules
+## Top-Level Fields
 
-- Each runner must have a unique key (used as the scale set name).
-- Each runner must have `labels` (an array of one or more strings).
-- Each runner must specify exactly one of `docker`, `libvirt`, or `tart`.
-- Multiple runners can use the same backend with different labels.
-- GitHub handles label matching. When a workflow uses `runs-on`, GitHub routes the job to the scale set whose labels match.
+### `url`
 
-## Fields
+Repository or organization URL. Can also be set via the `--url` CLI flag (which takes precedence).
+
+```yaml
+url: https://github.com/myorg/myrepo
+```
+
+### `token_file`
+
+Path to a file containing the GitHub PAT. The file should contain just the token, with optional trailing whitespace/newline.
+
+```yaml
+token_file: /etc/outrunner/token
+```
+
+Token resolution precedence:
+1. `--token` CLI flag
+2. `GITHUB_TOKEN` environment variable
+3. `$CREDENTIALS_DIRECTORY/github-token` (systemd-creds)
+4. `token_file` from config
+
+See the [systemd deployment guide](../howto/systemd-service.md) for details on each method.
+
+## Runner Fields
 
 ### `runners.<name>`
 
-**Required.** The map key becomes the name of the GitHub scale set. It is also used as a prefix for runner names and orphan cleanup.
+**Required.** The map key becomes the name of the GitHub scale set. It is also used as a prefix for runner names and orphan cleanup. Each runner must specify exactly one of `docker`, `libvirt`, or `tart`.
 
 ### `runners.<name>.labels`
 
@@ -58,21 +80,7 @@ jobs:
 
 ### `runners.<name>.max_runners`
 
-**Optional.** Maximum number of concurrent runners for this scale set. If not specified, defaults to the `--max-runners` CLI flag value.
-
-```yaml
-runners:
-  linux-docker:
-    labels: [self-hosted, linux]
-    max_runners: 8
-    docker:
-      image: runner:latest
-  macos-tart:
-    labels: [self-hosted, macos]
-    max_runners: 2
-    tart:
-      image: macos-runner
-```
+**Optional.** Maximum number of concurrent runners for this scale set. If not specified, defaults to the `--max-runners` CLI flag value (default: 2).
 
 ### `runners.<name>.docker`
 
@@ -110,9 +118,12 @@ Provisions a Tart virtual machine per job by cloning from a base image.
 
 ## Examples
 
-Docker only:
+Minimal (Docker, single runner):
 
 ```yaml
+url: https://github.com/myorg/myrepo
+token_file: /etc/outrunner/token
+
 runners:
   linux:
     labels: [self-hosted, linux]
@@ -123,14 +134,19 @@ runners:
 Mixed backends:
 
 ```yaml
+url: https://github.com/myorg
+token_file: /etc/outrunner/token
+
 runners:
   linux:
     labels: [self-hosted, linux]
+    max_runners: 4
     docker:
       image: outrunner-runner:latest
 
   windows:
     labels: [self-hosted, windows]
+    max_runners: 1
     libvirt:
       path: /var/lib/libvirt/images/windows-builder.qcow2
       runner_cmd: 'C:\actions-runner\run.cmd'
@@ -139,45 +155,10 @@ runners:
 
   macos:
     labels: [self-hosted, macos]
+    max_runners: 1
     tart:
       image: ghcr.io/cirruslabs/macos-sequoia-base:latest
       runner_cmd: /actions-runner/run.sh
       cpus: 4
       memory: 8192
 ```
-
-Multiple runners on the same backend:
-
-```yaml
-runners:
-  linux-small:
-    labels: [self-hosted, linux, small]
-    docker:
-      image: runner:latest
-
-  linux-large:
-    labels: [self-hosted, linux, large]
-    docker:
-      image: runner-with-tools:latest
-```
-
-Per-runner concurrency limits:
-
-```yaml
-runners:
-  linux:
-    labels: [self-hosted, linux]
-    max_runners: 8
-    docker:
-      image: runner:latest
-
-  macos:
-    labels: [self-hosted, macos]
-    max_runners: 2
-    tart:
-      image: macos-runner
-```
-
-## Label Matching
-
-GitHub handles all label matching. Each runner in the config gets its own scale set with its declared labels. When a workflow uses `runs-on`, GitHub routes the job to the scale set whose labels match. outrunner does not perform any label routing internally.

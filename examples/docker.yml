@@ -1,5 +1,8 @@
 # Docker-only configuration.
 # Build the runner image: docker build -t outrunner-runner runner/
+url: https://github.com/your-org/your-repo
+# token_file: /etc/outrunner/token
+
 runners:
   linux:
     labels: [self-hosted, linux]

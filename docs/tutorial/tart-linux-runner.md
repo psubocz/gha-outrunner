@@ -78,7 +78,7 @@ Note: The `runner_cmd` path depends on the image. For Cirrus Labs images, the ru
 ## 6. Start outrunner
 
 ```bash
-./outrunner \
+outrunner \
   --url https://github.com/YOUR_USER/YOUR_REPO \
   --token ghp_YOUR_TOKEN \
   --config outrunner.yml

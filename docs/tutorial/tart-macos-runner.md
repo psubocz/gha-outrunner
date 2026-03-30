@@ -95,7 +95,7 @@ Note: The default user in Cirrus Labs images is `admin`, so the runner path is `
 ## 7. Start outrunner
 
 ```bash
-./outrunner \
+outrunner \
   --url https://github.com/YOUR_USER/YOUR_REPO \
   --token ghp_YOUR_TOKEN \
   --config outrunner.yml

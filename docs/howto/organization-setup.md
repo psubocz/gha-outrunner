@@ -17,7 +17,7 @@ Note: The organization must allow fine-grained PATs. An org admin may need to en
 Use the organization URL instead of a repository URL:
 
 ```bash
-./outrunner \
+outrunner \
   --url https://github.com/your-org \
   --token ghp_xxx \
   --config outrunner.yml
@@ -43,10 +43,10 @@ Run separate outrunner instances with different config files:
 
 ```bash
 # Org-wide runners
-./outrunner --url https://github.com/your-org --config org.yml ...
+outrunner --url https://github.com/your-org --config org.yml ...
 
 # Extra runners for a specific repo with heavy CI
-./outrunner --url https://github.com/your-org/big-repo --config repo.yml ...
+outrunner --url https://github.com/your-org/big-repo --config repo.yml ...
 ```
 
 Use different runner names (config map keys) across instances to avoid scale set name collisions.

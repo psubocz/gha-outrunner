@@ -35,7 +35,7 @@ outrunner initializes only the backends that are needed. If no runner uses Docke
 ## Start outrunner
 
 ```bash
-./outrunner \
+outrunner \
   --url https://github.com/your/repo \
   --token ghp_xxx \
   --config mixed.yml \

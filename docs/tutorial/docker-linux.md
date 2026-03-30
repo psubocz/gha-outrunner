@@ -63,7 +63,7 @@ This tells outrunner: create a scale set named "linux" with the labels `self-hos
 ## 5. Start outrunner
 
 ```bash
-./outrunner \
+outrunner \
   --url https://github.com/YOUR_USER/YOUR_REPO \
   --token ghp_YOUR_TOKEN \
   --config outrunner.yml

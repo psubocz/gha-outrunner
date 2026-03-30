@@ -25,38 +25,45 @@ outrunner registers a GitHub Actions [scale set](https://github.com/actions/scal
 
 ## Flags
 
-| Flag | Type | Default | Required | Description |
-|------|------|---------|----------|-------------|
-| `--url` | string | | Yes | Repository or organization URL. Examples: `https://github.com/owner/repo`, `https://github.com/org` |
-| `--token` | string | | Yes | GitHub Personal Access Token (fine-grained). Needs **Administration** read/write permission on the target repository or organization. |
-| `--config` | string | | Yes | Path to the YAML configuration file. See [Configuration Reference](configuration.md). |
-| `--max-runners` | int | `2` | No | Default maximum number of concurrent runners per scale set. Individual runners can override this via `max_runners` in the config file. |
-| `-h`, `--help` | | | No | Show help. |
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--config` | string | `/etc/outrunner/config.yml` | Config file path. |
+| `--url` | string | | Repository or org URL. Overrides `url` in config. |
+| `--token` | string | | GitHub PAT. Overrides env var and config. |
+| `--max-runners` | int | `2` | Default max concurrent runners per scale set. |
+| `-h`, `--help` | | | Show help. |
+
+## Token Resolution
+
+The GitHub token is resolved in this order:
+
+1. `--token` CLI flag
+2. `GITHUB_TOKEN` environment variable
+3. `$CREDENTIALS_DIRECTORY/github-token` (systemd-creds)
+4. `token_file` in config file
+
+For production deployments, use systemd-creds (encrypted at rest) or an environment file. See the [systemd deployment guide](../howto/systemd-service.md).
 
 ## Examples
 
-Single-repo, Docker-only:
+As a service (config has url and token_file):
 
 ```bash
-./outrunner \
+outrunner
+```
+
+With CLI overrides (for testing):
+
+```bash
+outrunner \
   --url https://github.com/myorg/myrepo \
   --token ghp_xxx \
   --config outrunner.yml
 ```
 
-Organization-wide, higher default concurrency:
-
-```bash
-./outrunner \
-  --url https://github.com/myorg \
-  --token ghp_xxx \
-  --config outrunner.yml \
-  --max-runners 8
-```
-
 ## Behavior
 
-- On startup, outrunner creates one scale set per runner defined in the config file. Each scale set is named after the runner's key in the `runners` map. If a scale set with that name already exists, it is reused.
+- On startup, outrunner creates one scale set per runner defined in the config file. Each scale set is named after the runner's key in the `runners` map. If a scale set with that name already exists, it reuses it (updating labels if they changed).
 - Scale sets are kept across restarts. They are not deleted on shutdown.
 - On shutdown (Ctrl+C / SIGINT), outrunner stops all running environments and deregisters their runners from GitHub.
 - If outrunner is force-killed (SIGKILL), running environments may be left behind. On next startup, each provisioner cleans up orphaned environments whose names start with the runner's key.
@@ -67,7 +74,7 @@ Create a **fine-grained** Personal Access Token at [github.com/settings/tokens](
 
 - **Resource owner:** The organization or user that owns the repository.
 - **Repository access:** Select the target repository (or all repositories for org-wide use).
-- **Permissions:** Administration → Read and write.
+- **Permissions:** Administration -> Read and write.
 
 Classic tokens also work but fine-grained tokens are recommended for least-privilege.
 
