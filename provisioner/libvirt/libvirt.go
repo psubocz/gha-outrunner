@@ -13,7 +13,7 @@ import (
 	"text/template"
 	"time"
 
-	outrunner "github.com/psubocz/gha-outrunner"
+	outrunner "github.com/NetwindHQ/gha-outrunner"
 
 	golibvirt "github.com/digitalocean/go-libvirt"
 	"github.com/digitalocean/go-libvirt/socket/dialers"

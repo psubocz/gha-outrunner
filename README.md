@@ -1,8 +1,8 @@
 # gha-outrunner
 
-[![CI](https://github.com/psubocz/gha-outrunner/actions/workflows/ci.yml/badge.svg)](https://github.com/psubocz/gha-outrunner/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/psubocz/gha-outrunner)](https://goreportcard.com/report/github.com/psubocz/gha-outrunner)
-[![Go Reference](https://pkg.go.dev/badge/github.com/psubocz/gha-outrunner.svg)](https://pkg.go.dev/github.com/psubocz/gha-outrunner)
+[![CI](https://github.com/NetwindHQ/gha-outrunner/actions/workflows/ci.yml/badge.svg)](https://github.com/NetwindHQ/gha-outrunner/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/NetwindHQ/gha-outrunner)](https://goreportcard.com/report/github.com/NetwindHQ/gha-outrunner)
+[![Go Reference](https://pkg.go.dev/badge/github.com/NetwindHQ/gha-outrunner.svg)](https://pkg.go.dev/github.com/NetwindHQ/gha-outrunner)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Ephemeral GitHub Actions runners, no Kubernetes required.

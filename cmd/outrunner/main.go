@@ -9,13 +9,13 @@ import (
 	"os/signal"
 	"time"
 
+	outrunner "github.com/NetwindHQ/gha-outrunner"
+	"github.com/NetwindHQ/gha-outrunner/provisioner/docker"
+	"github.com/NetwindHQ/gha-outrunner/provisioner/libvirt"
+	"github.com/NetwindHQ/gha-outrunner/provisioner/tart"
 	"github.com/actions/scaleset"
 	"github.com/actions/scaleset/listener"
 	"github.com/google/uuid"
-	outrunner "github.com/psubocz/gha-outrunner"
-	"github.com/psubocz/gha-outrunner/provisioner/docker"
-	"github.com/psubocz/gha-outrunner/provisioner/libvirt"
-	"github.com/psubocz/gha-outrunner/provisioner/tart"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )

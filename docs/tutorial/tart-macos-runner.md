@@ -60,7 +60,7 @@ The changes are saved to the `macos-runner` image. This is now your base image w
 ## 4. Build outrunner
 
 ```bash
-git clone https://github.com/psubocz/gha-outrunner.git
+git clone https://github.com/NetwindHQ/gha-outrunner.git
 cd gha-outrunner
 go build -o outrunner ./cmd/outrunner
 ```

@@ -104,7 +104,7 @@ The qcow2 file is now your golden image.
 ## 3. Build outrunner
 
 ```bash
-git clone https://github.com/psubocz/gha-outrunner.git
+git clone https://github.com/NetwindHQ/gha-outrunner.git
 cd gha-outrunner
 go build -o outrunner ./cmd/outrunner
 ```

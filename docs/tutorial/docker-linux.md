@@ -15,7 +15,7 @@ First, we need a Docker image that has the GitHub Actions runner agent. outrunne
 Clone the repository and build the image:
 
 ```bash
-git clone https://github.com/psubocz/gha-outrunner.git
+git clone https://github.com/NetwindHQ/gha-outrunner.git
 cd gha-outrunner
 docker build -t outrunner-runner runner/
 ```

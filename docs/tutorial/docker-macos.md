@@ -30,7 +30,7 @@ You should see "Hello from Docker!"
 Clone the repository and build the runner image:
 
 ```bash
-git clone https://github.com/psubocz/gha-outrunner.git
+git clone https://github.com/NetwindHQ/gha-outrunner.git
 cd gha-outrunner
 docker build -t outrunner-runner runner/
 ```

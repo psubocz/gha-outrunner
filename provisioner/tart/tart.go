@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	outrunner "github.com/psubocz/gha-outrunner"
+	outrunner "github.com/NetwindHQ/gha-outrunner"
 )
 
 // Provisioner creates ephemeral Tart VMs as GitHub Actions runners.

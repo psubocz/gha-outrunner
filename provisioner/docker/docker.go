@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	outrunner "github.com/psubocz/gha-outrunner"
+	outrunner "github.com/NetwindHQ/gha-outrunner"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"

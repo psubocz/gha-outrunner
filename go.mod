@@ -1,4 +1,4 @@
-module github.com/psubocz/gha-outrunner
+module github.com/NetwindHQ/gha-outrunner
 
 go 1.26.1
 

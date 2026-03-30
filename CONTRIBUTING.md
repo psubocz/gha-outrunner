@@ -3,7 +3,7 @@
 ## Getting Started
 
 ```bash
-git clone https://github.com/psubocz/gha-outrunner.git
+git clone https://github.com/NetwindHQ/gha-outrunner.git
 cd gha-outrunner
 make build
 make test

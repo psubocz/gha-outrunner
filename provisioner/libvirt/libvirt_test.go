@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	outrunner "github.com/psubocz/gha-outrunner"
+	outrunner "github.com/NetwindHQ/gha-outrunner"
 )
 
 func TestRenderDomainXML(t *testing.T) {

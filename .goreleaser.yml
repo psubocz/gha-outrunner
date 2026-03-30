@@ -16,7 +16,31 @@ builds:
         goarch: amd64
 
 archives:
-  - format: tar.gz
+  - formats:
+      - tar.gz
+
+nfpms:
+  - package_name: outrunner
+    maintainer: NetwindHQ <https://github.com/NetwindHQ>
+    vendor: NetwindHQ
+    homepage: https://github.com/NetwindHQ/gha-outrunner
+    description: Ephemeral GitHub Actions runners, no Kubernetes required
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+
+homebrew_casks:
+  - name: outrunner
+    binaries:
+      - outrunner
+    homepage: https://github.com/NetwindHQ/gha-outrunner
+    description: Ephemeral GitHub Actions runners, no Kubernetes required
+    repository:
+      owner: NetwindHQ
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
 
 checksum:
   name_template: "checksums.txt"
