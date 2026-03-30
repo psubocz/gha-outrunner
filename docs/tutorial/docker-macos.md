@@ -79,11 +79,10 @@ outrunner \
 You should see:
 
 ```
-level=INFO msg="Auto-detected Docker host" docker.host=unix:///Users/you/.colima/default/docker.sock
-level=INFO msg="Loaded config" runners=1
-level=INFO msg="Scale set created" id=3
-level=INFO msg="Docker provisioner initialized"
-level=INFO msg="Listening for jobs" scaleSet=linux maxRunners=2
+2026-03-30 14:05:09 INFO Auto-detected Docker host scaleSet=linux docker.host=unix:///Users/you/.colima/default/docker.sock
+2026-03-30 14:05:09 INFO Loaded config runners=1
+2026-03-30 14:05:10 INFO Scale set ready scaleSet=linux id=3
+2026-03-30 14:05:10 INFO Listening for jobs scaleSet=linux maxRunners=2
 ```
 
 Notice outrunner auto-detected the Colima Docker socket. This works with Docker Desktop too.
@@ -113,9 +112,9 @@ Push this file and trigger it from GitHub → Actions → "Test Outrunner" → "
 In the outrunner terminal:
 
 ```
-level=INFO msg="Starting runner" scaler.name=linux-a1b2c3d4
-level=INFO msg="Container started" docker.name=linux-a1b2c3d4 docker.image=outrunner-runner:latest
-level=INFO msg="Job completed" scaler.runnerName=linux-a1b2c3d4 scaler.result=succeeded
+2026-03-30 14:06:12 INFO Spawning runner scaleSet=linux scaler.name=linux-a1b2c3d4 scaler.runnerID=1
+2026-03-30 14:06:13 INFO Container started scaleSet=linux docker.name=linux-a1b2c3d4 docker.image=outrunner-runner:latest
+2026-03-30 14:06:18 INFO Job completed scaleSet=linux scaler.runnerName=linux-a1b2c3d4 scaler.result=succeeded
 ```
 
 The workflow on GitHub should show a green checkmark.

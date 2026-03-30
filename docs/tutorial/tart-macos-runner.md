@@ -104,10 +104,9 @@ outrunner \
 You should see:
 
 ```
-level=INFO msg="Loaded config" runners=1
-level=INFO msg="Scale set created" id=6
-level=INFO msg="Tart provisioner initialized"
-level=INFO msg="Listening for jobs" scaleSet=macos maxRunners=2
+2026-03-30 14:05:09 INFO Loaded config runners=1
+2026-03-30 14:05:10 INFO Scale set ready scaleSet=macos id=6
+2026-03-30 14:05:10 INFO Listening for jobs scaleSet=macos maxRunners=2
 ```
 
 ## 8. Create a Test Workflow
@@ -136,11 +135,10 @@ Push this file and trigger it from GitHub → Actions → "Test Outrunner" → "
 In the outrunner terminal:
 
 ```
-level=DEBUG msg="Cloning VM" tart.image=macos-runner tart.name=macos-a1b2c3d4
-level=DEBUG msg="Waiting for guest agent" tart.name=macos-a1b2c3d4
-level=INFO  msg="Starting runner in VM" tart.name=macos-a1b2c3d4
-level=INFO  msg="Job completed" scaler.runnerName=macos-a1b2c3d4 scaler.result=succeeded
-level=DEBUG msg="Stopping VM" tart.name=macos-a1b2c3d4
+2026-03-30 14:06:12 INFO Spawning runner scaleSet=macos scaler.name=macos-a1b2c3d4 scaler.runnerID=1
+2026-03-30 14:06:14 INFO Starting runner in VM scaleSet=macos tart.name=macos-a1b2c3d4
+2026-03-30 14:06:20 INFO Job completed scaleSet=macos scaler.runnerName=macos-a1b2c3d4 scaler.result=succeeded
+2026-03-30 14:06:20 INFO Stopping runner scaleSet=macos scaler.name=macos-a1b2c3d4
 ```
 
 The `sw_vers` step will show macOS Sequoia, confirming it ran inside a real macOS VM.

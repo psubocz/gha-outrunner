@@ -149,10 +149,9 @@ Note: We set `--max-runners 1` because Windows VMs are resource-heavy.
 You should see:
 
 ```
-level=INFO msg="Loaded config" runners=1
-level=INFO msg="Scale set created" id=7
-level=INFO msg="Libvirt provisioner initialized"
-level=INFO msg="Listening for jobs" scaleSet=windows maxRunners=1
+2026-03-30 14:05:09 INFO Loaded config runners=1
+2026-03-30 14:05:10 INFO Scale set ready scaleSet=windows id=7
+2026-03-30 14:05:10 INFO Listening for jobs scaleSet=windows maxRunners=1
 ```
 
 ## 7. Create a Test Workflow
@@ -181,13 +180,11 @@ Push and trigger from GitHub → Actions.
 In the outrunner terminal:
 
 ```
-level=DEBUG msg="Creating overlay" libvirt.base=/var/lib/libvirt/images/ci-runners/windows-builder.qcow2
-level=DEBUG msg="Creating domain" libvirt.name=windows-a1b2c3d4
-level=DEBUG msg="Waiting for guest agent" libvirt.name=windows-a1b2c3d4
-level=INFO  msg="Starting runner in VM" libvirt.name=windows-a1b2c3d4
-level=INFO  msg="Runner started in VM" libvirt.name=windows-a1b2c3d4 libvirt.pid=1234
-level=INFO  msg="Job completed" scaler.runnerName=windows-a1b2c3d4 scaler.result=succeeded
-level=DEBUG msg="Stopping VM" libvirt.name=windows-a1b2c3d4
+2026-03-30 14:06:12 INFO Spawning runner scaleSet=windows scaler.name=windows-a1b2c3d4 scaler.runnerID=1
+2026-03-30 14:06:45 INFO Starting runner in VM scaleSet=windows libvirt.name=windows-a1b2c3d4
+2026-03-30 14:06:45 INFO Runner started in VM scaleSet=windows libvirt.name=windows-a1b2c3d4 libvirt.pid=1234
+2026-03-30 14:06:52 INFO Job completed scaleSet=windows scaler.runnerName=windows-a1b2c3d4 scaler.result=succeeded
+2026-03-30 14:06:52 INFO Stopping runner scaleSet=windows scaler.name=windows-a1b2c3d4
 ```
 
 The guest agent wait may take 30-90 seconds while Windows boots. After that, the runner starts and picks up the job.

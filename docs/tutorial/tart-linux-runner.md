@@ -87,10 +87,9 @@ outrunner \
 You should see:
 
 ```
-level=INFO msg="Loaded config" runners=1
-level=INFO msg="Scale set created" id=5
-level=INFO msg="Tart provisioner initialized"
-level=INFO msg="Listening for jobs" scaleSet=linux-arm64 maxRunners=2
+2026-03-30 14:05:09 INFO Loaded config runners=1
+2026-03-30 14:05:10 INFO Scale set ready scaleSet=linux-arm64 id=5
+2026-03-30 14:05:10 INFO Listening for jobs scaleSet=linux-arm64 maxRunners=2
 ```
 
 ## 7. Create a Test Workflow
@@ -119,14 +118,12 @@ Push this file and trigger it from GitHub → Actions → "Test Outrunner" → "
 In the outrunner terminal you'll see the VM lifecycle:
 
 ```
-level=DEBUG msg="Cloning VM" tart.image=ubuntu-runner tart.name=linux-arm64-a1b2c3d4
-level=DEBUG msg="Waiting for guest agent" tart.name=linux-arm64-a1b2c3d4
-level=DEBUG msg="Starting VM" tart.name=linux-arm64-a1b2c3d4
-level=INFO  msg="Starting runner in VM" tart.name=linux-arm64-a1b2c3d4
-level=INFO  msg="Runner started in VM" tart.name=linux-arm64-a1b2c3d4
-level=INFO  msg="Job started" scaler.runnerName=linux-arm64-a1b2c3d4
-level=INFO  msg="Job completed" scaler.runnerName=linux-arm64-a1b2c3d4 scaler.result=succeeded
-level=DEBUG msg="Stopping VM" tart.name=linux-arm64-a1b2c3d4
+2026-03-30 14:06:12 INFO Spawning runner scaleSet=linux-arm64 scaler.name=linux-arm64-a1b2c3d4 scaler.runnerID=1
+2026-03-30 14:06:14 INFO Starting runner in VM scaleSet=linux-arm64 tart.name=linux-arm64-a1b2c3d4
+2026-03-30 14:06:15 INFO Runner started in VM scaleSet=linux-arm64 tart.name=linux-arm64-a1b2c3d4
+2026-03-30 14:06:16 INFO Job started scaleSet=linux-arm64 scaler.runnerName=linux-arm64-a1b2c3d4
+2026-03-30 14:06:22 INFO Job completed scaleSet=linux-arm64 scaler.runnerName=linux-arm64-a1b2c3d4 scaler.result=succeeded
+2026-03-30 14:06:22 INFO Stopping runner scaleSet=linux-arm64 scaler.name=linux-arm64-a1b2c3d4
 ```
 
 The workflow on GitHub should show a green checkmark. The `uname -a` step will show `aarch64`, confirming it ran on ARM64 Linux.

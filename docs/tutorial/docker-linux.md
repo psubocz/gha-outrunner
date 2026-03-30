@@ -5,7 +5,6 @@ In this tutorial we will set up outrunner on a Linux server to run GitHub Action
 ## Prerequisites
 
 - A Linux server (Ubuntu, Debian, Fedora, etc.) with Docker installed
-- Go 1.22+ installed (for building outrunner)
 - A GitHub repository you own
 
 ## 1. Build the Runner Image
@@ -72,11 +71,11 @@ outrunner \
 You should see output like:
 
 ```
-level=INFO msg="Loaded config" runners=1
-level=INFO msg="Scale set not found, creating" name=linux
-level=INFO msg="Scale set created" id=3
-level=INFO msg="Docker provisioner initialized"
-level=INFO msg="Listening for jobs" scaleSet=linux maxRunners=2
+2026-03-30 14:05:09 INFO Loaded config runners=1
+2026-03-30 14:05:09 INFO Looking for scale set scaleSet=linux
+2026-03-30 14:05:10 INFO Creating scale set scaleSet=linux
+2026-03-30 14:05:10 INFO Scale set ready scaleSet=linux id=3
+2026-03-30 14:05:10 INFO Listening for jobs scaleSet=linux maxRunners=2
 ```
 
 outrunner is now listening for jobs. Leave it running.
@@ -109,11 +108,11 @@ Go to your repository on GitHub → Actions → "Test Outrunner" → "Run workfl
 Back in the outrunner terminal, you should see:
 
 ```
-level=INFO msg="Starting runner" scaler.name=linux-a1b2c3d4
-level=INFO msg="Container started" docker.name=linux-a1b2c3d4 docker.image=outrunner-runner:latest docker.id=e3f4a5b6c7d8
-level=INFO msg="Job started" scaler.runnerName=linux-a1b2c3d4
-level=INFO msg="Job completed" scaler.runnerName=linux-a1b2c3d4 scaler.result=succeeded
-level=INFO msg="Stopping runner" scaler.name=linux-a1b2c3d4
+2026-03-30 14:06:12 INFO Spawning runner scaleSet=linux scaler.name=linux-a1b2c3d4 scaler.runnerID=1
+2026-03-30 14:06:13 INFO Container started scaleSet=linux docker.name=linux-a1b2c3d4 docker.image=outrunner-runner:latest docker.id=e3f4a5b6c7d8
+2026-03-30 14:06:14 INFO Job started scaleSet=linux scaler.runnerName=linux-a1b2c3d4
+2026-03-30 14:06:18 INFO Job completed scaleSet=linux scaler.runnerName=linux-a1b2c3d4 scaler.result=succeeded
+2026-03-30 14:06:18 INFO Stopping runner scaleSet=linux scaler.name=linux-a1b2c3d4
 ```
 
 The workflow run on GitHub should show a green checkmark.
@@ -123,8 +122,8 @@ The workflow run on GitHub should show a green checkmark.
 Press Ctrl+C in the outrunner terminal. It will stop cleanly:
 
 ```
-level=INFO msg="All runners shut down"
-level=INFO msg="Shut down cleanly"
+2026-03-30 14:06:19 INFO All runners shut down scaleSet=linux
+2026-03-30 14:06:19 INFO Shut down cleanly
 ```
 
 Any running containers are stopped. The scale set is kept on GitHub for reuse on next startup.
