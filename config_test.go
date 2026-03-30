@@ -3,6 +3,7 @@ package outrunner
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -109,6 +110,9 @@ func TestLoadConfigNoRunners(t *testing.T) {
 	_, err := LoadConfig(path)
 	if err == nil {
 		t.Fatal("expected error for empty runners")
+	}
+	if !strings.Contains(err.Error(), "no runners configured") {
+		t.Errorf("expected 'no runners configured' in error, got %q", err)
 	}
 }
 

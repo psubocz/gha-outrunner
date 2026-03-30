@@ -77,7 +77,7 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	if len(cfg.Runners) == 0 {
-		return nil, fmt.Errorf("no runners configured")
+		return nil, fmt.Errorf("no runners configured (uncomment the runners section in %s)", path)
 	}
 
 	for name, runner := range cfg.Runners {

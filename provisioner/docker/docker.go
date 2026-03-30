@@ -84,7 +84,10 @@ func (d *Provisioner) Start(ctx context.Context, req *outrunner.RunnerRequest) e
 		if pullErr != nil {
 			return fmt.Errorf("pull image: %w", pullErr)
 		}
-		_, _ = io.Copy(io.Discard, reader)
+		if _, err := io.Copy(io.Discard, reader); err != nil {
+			_ = reader.Close()
+			return fmt.Errorf("drain image pull: %w", err)
+		}
 		_ = reader.Close()
 	}
 

@@ -22,6 +22,9 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// version is set at build time by GoReleaser via ldflags.
+var version = "dev"
+
 var cfg struct {
 	URL        string
 	Token      string
@@ -30,8 +33,9 @@ var cfg struct {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "outrunner",
-	Short: "Ephemeral GitHub Actions runners, no Kubernetes required",
+	Use:     "outrunner",
+	Short:   "Ephemeral GitHub Actions runners, no Kubernetes required",
+	Version: version,
 	Long: `outrunner provisions ephemeral Docker containers and/or VMs for each
 GitHub Actions job. It uses the scaleset API to register as an autoscaling
 runner group, then creates and destroys runner environments on demand.

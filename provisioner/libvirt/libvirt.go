@@ -177,7 +177,12 @@ func (p *Provisioner) Cleanup(prefix string) {
 			continue
 		}
 		p.logger.Info("Cleaning up orphaned VM", slog.String("name", name))
-		_ = p.conn.DomainDestroy(dom)
+		if err := p.conn.DomainDestroy(dom); err != nil {
+			p.logger.Warn("Failed to destroy orphaned VM",
+				slog.String("name", name),
+				slog.String("error", err.Error()),
+			)
+		}
 
 		overlayPath := filepath.Join(p.overlayDir, name+".qcow2")
 		_ = os.Remove(overlayPath)

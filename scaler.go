@@ -230,7 +230,9 @@ func (s *Scaler) runRunnerLifecycle(state *RunnerState, req *RunnerRequest) {
 	s.mu.Unlock()
 
 	s.logger.Info("Stopping runner", slog.String("name", name))
-	if err := s.provisioner.Stop(context.Background(), name); err != nil {
+	stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer stopCancel()
+	if err := s.provisioner.Stop(stopCtx, name); err != nil {
 		s.logger.Error("Failed to stop runner",
 			slog.String("name", name),
 			slog.String("error", err.Error()),
@@ -254,7 +256,7 @@ func (s *Scaler) deregisterRunner(name string, runnerID int) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := s.client.RemoveRunner(ctx, int64(runnerID)); err != nil {
-		s.logger.Debug("Failed to deregister runner",
+		s.logger.Warn("Failed to deregister runner",
 			slog.String("name", name),
 			slog.Int("runnerID", runnerID),
 			slog.String("error", err.Error()),

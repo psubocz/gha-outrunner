@@ -1,5 +1,11 @@
 # outrunner configuration
 # See https://github.com/NetwindHQ/gha-outrunner/blob/main/docs/reference/configuration.md
+#
+# Quick setup:
+#   1. Set the url below to your GitHub repository or organization
+#   2. Provide a token (see options below)
+#   3. Uncomment the runners section and adjust to your needs
+#   4. Start the service: sudo systemctl start outrunner
 
 url: https://github.com/your-org/your-repo
 
@@ -8,8 +14,14 @@ url: https://github.com/your-org/your-repo
 # 2. GITHUB_TOKEN environment variable (set in /etc/outrunner/env)
 # 3. systemd-creds ($CREDENTIALS_DIRECTORY/github-token)
 # 4. token_file below
-# token_file: /etc/outrunner/token
+#
+# Simplest option — create a token file:
+#   echo -n "ghp_YOUR_TOKEN" | sudo tee /etc/outrunner/token
+#   sudo chmod 600 /etc/outrunner/token && sudo chown outrunner:outrunner /etc/outrunner/token
+token_file: /etc/outrunner/token
 
+# Uncomment and adjust the runners section below.
+# Each entry creates a scale set that GitHub routes jobs to based on labels.
 # runners:
 #   linux:
 #     labels: [self-hosted, linux]
