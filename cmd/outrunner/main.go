@@ -136,6 +136,13 @@ func runWorker(ctx context.Context, logger *slog.Logger, client *scaleset.Client
 		if err != nil {
 			return fmt.Errorf("runner %s: create scale set: %w", name, err)
 		}
+	} else if !labelsMatch(scaleSet.Labels, labels) {
+		logger.Info("Updating scale set labels")
+		scaleSet.Labels = labels
+		scaleSet, err = client.UpdateRunnerScaleSet(ctx, scaleSet.ID, scaleSet)
+		if err != nil {
+			return fmt.Errorf("runner %s: update scale set labels: %w", name, err)
+		}
 	}
 	logger.Info("Scale set ready", slog.Int("id", scaleSet.ID))
 
@@ -195,6 +202,23 @@ func createProvisioner(logger *slog.Logger, runner *outrunner.RunnerConfig) (out
 	default:
 		return nil, fmt.Errorf("unknown provider type %q", runner.ProviderType())
 	}
+}
+
+// labelsMatch checks if the existing scale set labels match the desired labels.
+func labelsMatch(existing []scaleset.Label, desired []scaleset.Label) bool {
+	if len(existing) != len(desired) {
+		return false
+	}
+	have := make(map[string]bool, len(existing))
+	for _, l := range existing {
+		have[l.Name] = true
+	}
+	for _, l := range desired {
+		if !have[l.Name] {
+			return false
+		}
+	}
+	return true
 }
 
 // cleanupOrphans removes leftover resources from previous runs.
