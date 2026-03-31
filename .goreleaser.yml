@@ -46,6 +46,7 @@ nfpms:
           owner: outrunner
           group: outrunner
     scripts:
+      preinstall: scripts/preinstall.sh
       preremove: scripts/preremove.sh
     overrides:
       deb:
