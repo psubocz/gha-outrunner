@@ -35,7 +35,7 @@ USER runner
 - Pre-install any tools your workflows need. There's no caching between jobs since each container is ephemeral.
 - The container is created with `AutoRemove: true`, so it's deleted after the runner process exits.
 
-See the included `runner/Dockerfile` for a working example.
+See [Build a custom Docker runner image](../howto/custom-docker-image.md) for examples.
 
 ## Libvirt (KVM/QEMU)
 

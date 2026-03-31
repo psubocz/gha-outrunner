@@ -1,6 +1,6 @@
 # How to Build a Custom Docker Runner Image
 
-The included `runner/Dockerfile` provides a minimal runner image. Extend it to pre-install tools your workflows need.
+Build a custom Docker runner image with your tools pre-installed.
 
 ## Start From the Base
 
@@ -66,8 +66,10 @@ USER runner
 
 ## Build and Test
 
+Save your Dockerfile and build:
+
 ```bash
-docker build -t my-runner runner/
+docker build -t my-runner .
 docker run --rm my-runner go version   # verify tools are available
 ```
 
@@ -85,17 +87,9 @@ runners:
 
 Create separate Dockerfiles for different workloads:
 
-```
-runner/
-├── Dockerfile              # base image
-├── Dockerfile.go           # Go development
-├── Dockerfile.node         # Node.js development
-└── Dockerfile.heavy        # full toolchain
-```
-
 ```bash
-docker build -t runner-go -f runner/Dockerfile.go runner/
-docker build -t runner-node -f runner/Dockerfile.node runner/
+docker build -t runner-go -f Dockerfile.go .
+docker build -t runner-node -f Dockerfile.node .
 ```
 
 ```yaml

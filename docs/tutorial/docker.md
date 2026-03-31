@@ -14,15 +14,7 @@ docker pull ghcr.io/actions/actions-runner:latest
 
 ### Option B: Build a custom image
 
-Clone the repository and build:
-
-```bash
-git clone https://github.com/NetwindHQ/gha-outrunner.git
-cd gha-outrunner
-docker build -t outrunner-runner runner/
-```
-
-See [Build a custom Docker runner image](../howto/custom-docker-image.md) for more details.
+See [Build a custom Docker runner image](../howto/custom-docker-image.md).
 
 ## Configuration
 
