@@ -4,27 +4,7 @@ outrunner is a single binary that bridges GitHub's scaleset API with local infra
 
 ## System Overview
 
-```
-GitHub Actions                        outrunner                          Infrastructure
------                                ----------                          --------------
-
-                                ┌──────────────────┐
-                                │  Config loader    │
-                                │  (runners map)    │
-                                └────────┬─────────┘
-                                         │ one per runner
-                                ┌────────▼─────────┐
-Workflow queues job ───────────►│    Listener       │──── scale set ────► Docker
-                                │  (scaleset API,   │──── scale set ────► Libvirt
-                                │   one per runner) │──── scale set ────► Tart
-                                └────────┬─────────┘
-                                         │ desired runner count
-                                ┌────────▼─────────┐
-                                │     Scaler        │
-                                │  (JIT config,     │
-                                │   runner tracking)│
-                                └───────────────────┘
-```
+![Architecture diagram](../arch.png)
 
 Each runner defined in the config gets its own scale set and listener. GitHub handles label matching and routes jobs to the appropriate scale set. outrunner does not perform any internal label routing.
 
@@ -42,11 +22,11 @@ The Scaler implements the `listener.Scaler` interface from the scaleset library.
 
 1. **HandleDesiredRunnerCount:** GitHub says "I need N runners." The Scaler generates JIT configs and calls the provisioner's `Start` for each new runner needed. It never exceeds the runner's `max_runners` limit (which defaults to the `--max-runners` CLI flag).
 
-2. **HandleJobStarted:** A runner picked up a job. Currently just logs this.
+2. **HandleJobStarted:** A runner picked up a job. Updates the runner's phase to Running.
 
 3. **HandleJobCompleted:** A job finished. The Scaler calls the provisioner's `Stop` to tear down the environment.
 
-The Scaler tracks active runners by name in a map, protected by a mutex. On shutdown, it stops all remaining runners.
+The Scaler tracks active runners by name in a map, protected by a mutex. Each runner gets its own goroutine that manages the full lifecycle: provisioning, waiting for completion, stopping, and deregistration. On shutdown, the Scaler cancels the lifecycle context and waits for all goroutines to finish (with a timeout).
 
 ### Provisioners
 

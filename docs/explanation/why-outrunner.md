@@ -16,28 +16,18 @@ outrunner is a single binary. No cluster, no operator, no CRDs. Install it, poin
 
 You can mix all three backends in one config. A single outrunner instance can serve Docker containers for Linux jobs and KVM virtual machines for Windows jobs on the same host.
 
-## Design Decisions
+## Design Highlights
 
-### Single binary, no daemon dependencies
-
-outrunner has no external dependencies beyond the backends themselves (Docker, libvirtd, Tart). No database, no message queue, no coordinator. State is held in memory. If outrunner restarts, it cleans up orphans and starts fresh.
-
-### Scaleset API, not polling
-
-outrunner uses GitHub's [scaleset API](https://github.com/actions/scaleset) rather than polling the REST API for queued jobs. The scaleset API pushes job notifications to listeners via long-polling, giving faster response times and no wasted API calls. This is the same API that ARC uses.
-
-### Guest agents, not SSH
-
-VM provisioners use hypervisor-level guest agents instead of SSH or WinRM. This avoids network configuration, credential management, and firewall rules entirely. See [Architecture](architecture.md) for details.
-
-### JIT registration, not pre-registered runners
-
-Each runner gets a one-time JIT configuration token. It registers with GitHub on startup, runs one job, and is never reused. No runner tokens are baked into images, and no long-lived credentials exist inside environments.
+- **No daemon dependencies** - no database, no message queue, no coordinator. State is in memory. Cleans up orphans on restart.
+- **Scaleset API, not polling** - same push-based API that ARC uses. No wasted API calls.
+- **Guest agents, not SSH** - no network config, no credentials to manage. See [Architecture](architecture.md) for details.
+- **JIT registration** - each runner gets a one-time token. No long-lived credentials in images.
 
 ## When to Use Something Else
 
-- **GitHub-hosted runners** are the simplest option if they meet your needs (standard environments, no secrets on the runner, acceptable cost).
+- **GitHub-hosted runners** are the simplest option if they meet your needs (standard environments, acceptable cost).
 - **ARC** is the right choice if you already run Kubernetes and want mature, battle-tested autoscaling.
+- **Self-hosted runner with `container:`** is a decent option if you only need Docker and are OK with the runner process living outside the container. Each workflow must opt in to `container:` (or you enforce it globally with `ACTIONS_RUNNER_REQUIRE_JOB_CONTAINER=true`). With outrunner, every job gets a fresh environment by default.
 - **Static self-hosted runners** work if you only need one or two runners and don't care about isolation between jobs.
 
 outrunner fills the gap: you want ephemeral isolation, you don't want Kubernetes, and you have a server (or a Mac) to run it on.

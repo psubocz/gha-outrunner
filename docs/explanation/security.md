@@ -9,7 +9,7 @@ outrunner requires a fine-grained Personal Access Token with **Administration re
 1. Register scale sets and manage runners on the repository or organization.
 2. Generate JIT runner configuration tokens for each job.
 
-The PAT is held in outrunner's process memory. It is never written to disk, passed to containers, or injected into VMs. Protect it as you would any credential with write access to your repository settings.
+The PAT is read at startup and held in process memory. It is never passed to containers or injected into VMs. outrunner supports multiple token sources, including systemd-creds (encrypted at rest) to avoid storing the token in plaintext on disk. Protect the PAT as you would any credential with write access to your repository settings.
 
 ### JIT Configuration Tokens
 
@@ -43,7 +43,7 @@ KVM virtual machines provide hardware-level isolation:
 - VMs are transient (created via `DomainCreateXML`, not defined). They leave no persistent configuration.
 - On job completion, the VM is force-destroyed and the overlay is deleted.
 
-This is the strongest isolation model outrunner offers and is appropriate for untrusted workloads.
+This is the strongest isolation model outrunner offers.
 
 ### Tart
 
@@ -85,7 +85,7 @@ The scale set registration also persists on GitHub's side. outrunner reuses it o
 ## Recommendations
 
 1. **Use a dedicated PAT** with minimal scope: one repository, Administration read/write only.
-2. **Run outrunner as a dedicated system user**, not root. For Docker, add this user to the `docker` group. For libvirt, add to the `libvirt` group.
-3. **Use VM backends for untrusted workloads** (public repos, third-party PRs). Docker isolation is sufficient for trusted internal workloads.
+2. **Run outrunner as a dedicated system user**, not root. Add this user to the `docker` group (for Docker socket access) or `libvirt` group (for libvirtd socket access) as needed.
+3. **Prefer VM backends for higher isolation needs** (public repos, third-party PRs). Docker isolation is sufficient for trusted internal workloads.
 4. **Rotate the PAT periodically** and store it in a secrets manager. outrunner reads it once at startup, so rotation requires a restart.
 5. **Don't bake secrets into runner images.** Use GitHub Actions secrets, OIDC, or environment-specific credential providers instead.
