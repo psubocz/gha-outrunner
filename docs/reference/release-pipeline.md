@@ -20,9 +20,9 @@ All release artifacts are signed with a GPG ed25519 key. The master key is kept 
 
 | Secret | Where | Purpose |
 |--------|-------|---------|
-| `GPG_SIGNING_KEY` | GitHub repo secrets | Signing subkey (ci-signing-key.asc) — signs deb, rpm, and checksums |
-| `GPG_FINGERPRINT` | GitHub repo secrets | Signing subkey fingerprint — used by GoReleaser for checksums signing |
-| `GPG_PRIVATE_KEY` | Cloudflare Workers secrets (pkg worker) | Same signing subkey — used by reprox to sign repo metadata |
+| `GPG_SIGNING_KEY` | GitHub repo secrets | Signing subkey (ci-signing-key.asc) - signs deb, rpm, and checksums |
+| `GPG_FINGERPRINT` | GitHub repo secrets | Signing subkey fingerprint - used by GoReleaser for checksums signing |
+| `GPG_PRIVATE_KEY` | Cloudflare Workers secrets (pkg worker) | Same signing subkey - used by reprox to sign repo metadata |
 
 The master key and a backup of the public key are stored offline on an air-gapped USB drive. The revocation certificate can be regenerated from the master key.
 

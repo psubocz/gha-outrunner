@@ -148,7 +148,7 @@ runners:
     labels: [self-hosted, windows]
     max_runners: 1
     libvirt:
-      path: /var/lib/libvirt/images/windows-builder.qcow2
+      path: /var/lib/libvirt/images/ci-runners/windows-builder.qcow2
       runner_cmd: 'C:\actions-runner\run.cmd'
       cpus: 4
       memory: 8192
@@ -158,7 +158,7 @@ runners:
     max_runners: 1
     tart:
       image: ghcr.io/cirruslabs/macos-sequoia-base:latest
-      runner_cmd: /actions-runner/run.sh
+      runner_cmd: /Users/admin/actions-runner/run.sh
       cpus: 4
       memory: 8192
 ```

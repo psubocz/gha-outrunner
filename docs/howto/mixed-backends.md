@@ -16,7 +16,7 @@ runners:
   windows:
     labels: [self-hosted, windows]
     libvirt:
-      path: /var/lib/libvirt/images/windows-builder.qcow2
+      path: /var/lib/libvirt/images/ci-runners/windows-builder.qcow2
       runner_cmd: 'C:\actions-runner\run.cmd'
       cpus: 4
       memory: 8192
