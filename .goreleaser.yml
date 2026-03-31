@@ -46,12 +46,15 @@ nfpms:
           owner: outrunner
           group: outrunner
     scripts:
-      postinstall: scripts/postinstall.sh
       preremove: scripts/preremove.sh
     deb:
+      scripts:
+        postinstall: scripts/postinstall-deb.sh
       signature:
         key_file: /tmp/gpg-signing-key.asc
     rpm:
+      scripts:
+        postinstall: scripts/postinstall-rpm.sh
       signature:
         key_file: /tmp/gpg-signing-key.asc
 
