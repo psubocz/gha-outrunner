@@ -33,7 +33,7 @@ Open Terminal inside the VM and run:
 
 ```bash
 mkdir -p ~/actions-runner && cd ~/actions-runner
-curl -sL https://github.com/actions/runner/releases/download/v2.322.0/actions-runner-osx-arm64-2.322.0.tar.gz | tar xz
+curl -sL https://github.com/actions/runner/releases/download/v2.333.1/actions-runner-osx-arm64-2.333.1.tar.gz | tar xz
 ```
 
 Shut down the VM from Apple menu -> Shut Down.

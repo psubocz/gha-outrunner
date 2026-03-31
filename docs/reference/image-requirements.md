@@ -6,7 +6,7 @@ Every runner environment (container or VM) must have the GitHub Actions runner a
 
 All backends need:
 
-- **GitHub Actions runner:** The [actions/runner](https://github.com/actions/runner) agent, extracted and ready to run.
+- **GitHub Actions runner:** The [actions/runner](https://github.com/actions/runner/releases) agent, extracted and ready to run. Check the [releases page](https://github.com/actions/runner/releases) for the latest version.
 - **Runner entrypoint:** The `run.sh` (Linux/macOS) or `run.cmd` (Windows) script must be executable at a known path.
 - **Network access:** The runner needs outbound HTTPS to `github.com` and `*.actions.githubusercontent.com`.
 
@@ -55,7 +55,7 @@ systemctl enable qemu-guest-agent
 
 # Install runner
 mkdir -p /actions-runner && cd /actions-runner
-curl -sL https://github.com/actions/runner/releases/download/v2.322.0/actions-runner-linux-x64-2.322.0.tar.gz | tar xz
+curl -sL https://github.com/actions/runner/releases/download/v2.333.1/actions-runner-linux-x64-2.333.1.tar.gz | tar xz
 ```
 
 ### Windows VMs
@@ -91,7 +91,7 @@ tart clone ghcr.io/cirruslabs/macos-sequoia-base:latest runner-base
 tart run runner-base
 # Inside the VM:
 mkdir -p ~/actions-runner && cd ~/actions-runner
-curl -sL https://github.com/actions/runner/releases/download/v2.322.0/actions-runner-osx-arm64-2.322.0.tar.gz | tar xz
+curl -sL https://github.com/actions/runner/releases/download/v2.333.1/actions-runner-osx-arm64-2.333.1.tar.gz | tar xz
 # Shut down the VM
 ```
 

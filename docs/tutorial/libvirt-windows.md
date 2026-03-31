@@ -71,7 +71,7 @@ Then install the runner:
 
 ```powershell
 mkdir C:\actions-runner; cd C:\actions-runner
-Invoke-WebRequest -Uri https://github.com/actions/runner/releases/download/v2.322.0/actions-runner-win-x64-2.322.0.zip -OutFile runner.zip
+Invoke-WebRequest -Uri https://github.com/actions/runner/releases/download/v2.333.1/actions-runner-win-x64-2.333.1.zip -OutFile runner.zip
 Expand-Archive runner.zip -DestinationPath .
 Remove-Item runner.zip
 ```
