@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.1] - 2026-04-06
+
+Minor bugfix release.
+
+### Fixes
+
+- Disable `PrivateTmp` in systemd service — libvirt provisioner creates qcow2 overlays in `/tmp` that QEMU needs to access outside the namespace
+- Clarify Windows virtiofs mount requirements in docs: WinFsp install, `VirtioFsSvc` auto-start, default drive letter (Z:)
+
 ## [1.1.0] - 2026-04-04
 
 ### Features
