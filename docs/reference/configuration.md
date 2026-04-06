@@ -131,7 +131,7 @@ Provisions a KVM/QEMU virtual machine per job using a copy-on-write overlay.
 |-------|------|---------|-------------|
 | `source` | string | (required) | Absolute path on the host to share into the VM. The virtiofs tag is derived from the directory basename. |
 
-The share is exposed via virtiofs. On Windows guests, `VirtioFsSvc` mounts it automatically as a drive letter (requires WinFsp installed in the guest image). `virtiofsd` must be installed on the host (`apt install virtiofsd`).
+The share is exposed via virtiofs. On Windows guests, `VirtioFsSvc` mounts it automatically as a drive letter (Z: by default, counting down). Requires WinFsp (`choco install -y winfsp`) and `VirtioFsSvc` set to auto-start (`Set-Service -Name VirtioFsSvc -StartupType Automatic`). `virtiofsd` must be installed on the host (`apt install virtiofsd`).
 
 ### `runners.<name>.tart`
 

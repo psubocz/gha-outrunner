@@ -86,10 +86,11 @@ libvirt:
     source: /var/cache/vcpkg
 ```
 
-The virtiofs tag is derived from the source directory basename. On Windows guests, `VirtioFsSvc` mounts it automatically as a drive letter once the VM boots. Requires:
+The virtiofs tag is derived from the source directory basename. On Windows guests, `VirtioFsSvc` mounts it automatically as a drive letter (Z: by default, then Y:, X:, etc.) once the VM boots. Requires:
 
 - `virtiofsd` installed on the host (`apt install virtiofsd`)
-- WinFsp installed in the guest image (for Windows guests)
+- WinFsp installed in the guest image (`choco install -y winfsp`)
+- `VirtioFsSvc` set to start automatically (`Set-Service -Name VirtioFsSvc -StartupType Automatic`) — it defaults to Manual
 - `memfd`-backed shared memory (added to the domain XML automatically when `mount` is set)
 
 ### Connection
