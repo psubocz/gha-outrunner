@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,10 +43,9 @@ type stderrLog struct {
 }
 
 func newStderrLog(name, label string) (*stderrLog, error) {
-	path := filepath.Join(os.TempDir(), fmt.Sprintf("outrunner-%s-%s.log", label, name))
-	f, err := os.Create(path)
+	f, err := os.CreateTemp("", fmt.Sprintf("outrunner-%s-%s-*.log", label, name))
 	if err != nil {
-		return nil, fmt.Errorf("create stderr log %s: %w", path, err)
+		return nil, fmt.Errorf("create stderr log: %w", err)
 	}
 	tail := &tailBuffer{max: maxStderrLog}
 	return &stderrLog{file: f, tail: tail, w: io.MultiWriter(f, tail)}, nil
@@ -156,16 +154,19 @@ func (t *Provisioner) Start(ctx context.Context, req *outrunner.RunnerRequest) e
 func (t *Provisioner) runAndLog(ctx context.Context, name, label string, args []string) {
 	stderr, err := newStderrLog(name, label)
 	if err != nil {
-		t.logger.Error("Failed to create stderr log",
+		t.logger.Warn("Failed to create stderr log, running without capture",
 			slog.String("name", name),
 			slog.String("error", err.Error()),
 		)
-		return
 	}
 	cmd := exec.CommandContext(ctx, "tart", args...)
-	cmd.Stderr = stderr
+	if stderr != nil {
+		cmd.Stderr = stderr
+	}
 	if err := cmd.Start(); err != nil {
-		stderr.CleanupFile()
+		if stderr != nil {
+			stderr.CleanupFile()
+		}
 		if ctx.Err() == nil {
 			t.logger.Error("Failed to start tart "+label,
 				slog.String("name", name),
@@ -175,14 +176,19 @@ func (t *Provisioner) runAndLog(ctx context.Context, name, label string, args []
 		return
 	}
 	if err := cmd.Wait(); err != nil && ctx.Err() == nil {
-		stderr.Close()
-		t.logger.Error("Tart "+label+" exited with error",
+		attrs := []any{
 			slog.String("name", name),
 			slog.String("error", err.Error()),
-			slog.String("stderr", stderr.Tail()),
-			slog.String("log", stderr.Path()),
-		)
-	} else {
+		}
+		if stderr != nil {
+			stderr.Close()
+			attrs = append(attrs,
+				slog.String("stderr", stderr.Tail()),
+				slog.String("log", stderr.Path()),
+			)
+		}
+		t.logger.Error("Tart "+label+" exited with error", attrs...)
+	} else if stderr != nil {
 		stderr.CleanupFile()
 	}
 }

@@ -7,7 +7,7 @@ import (
 
 func TestTailBuffer_UnderMax(t *testing.T) {
 	tb := &tailBuffer{max: 16}
-	tb.Write([]byte("hello"))
+	_, _ = tb.Write([]byte("hello"))
 	if got := tb.String(); got != "hello" {
 		t.Fatalf("got %q, want %q", got, "hello")
 	}
@@ -15,7 +15,7 @@ func TestTailBuffer_UnderMax(t *testing.T) {
 
 func TestTailBuffer_ExactMax(t *testing.T) {
 	tb := &tailBuffer{max: 5}
-	tb.Write([]byte("abcde"))
+	_, _ = tb.Write([]byte("abcde"))
 	if got := tb.String(); got != "abcde" {
 		t.Fatalf("got %q, want %q", got, "abcde")
 	}
@@ -23,7 +23,7 @@ func TestTailBuffer_ExactMax(t *testing.T) {
 
 func TestTailBuffer_OverMax(t *testing.T) {
 	tb := &tailBuffer{max: 4}
-	tb.Write([]byte("abcdef"))
+	_, _ = tb.Write([]byte("abcdef"))
 	if got := tb.String(); got != "cdef" {
 		t.Fatalf("got %q, want %q", got, "cdef")
 	}
@@ -31,8 +31,8 @@ func TestTailBuffer_OverMax(t *testing.T) {
 
 func TestTailBuffer_MultipleWrites(t *testing.T) {
 	tb := &tailBuffer{max: 6}
-	tb.Write([]byte("abcd"))
-	tb.Write([]byte("efgh"))
+	_, _ = tb.Write([]byte("abcd"))
+	_, _ = tb.Write([]byte("efgh"))
 	if got := tb.String(); got != "cdefgh" {
 		t.Fatalf("got %q, want %q", got, "cdefgh")
 	}
@@ -56,8 +56,8 @@ func TestStderrLog_WritesFileAndTail(t *testing.T) {
 	}
 	defer sl.CleanupFile()
 
-	sl.Write([]byte("line one\n"))
-	sl.Write([]byte("line two\n"))
+	_, _ = sl.Write([]byte("line one\n"))
+	_, _ = sl.Write([]byte("line two\n"))
 
 	// Tail should contain the data
 	tail := sl.Tail()
@@ -89,7 +89,7 @@ func TestStderrLog_TailTruncates(t *testing.T) {
 		big[i] = 'x'
 	}
 	big[len(big)-1] = '!'
-	sl.Write(big)
+	_, _ = sl.Write(big)
 
 	tail := sl.tail.String()
 	if len(tail) != maxStderrLog {
