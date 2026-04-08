@@ -3,8 +3,11 @@ package tart
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -12,6 +15,57 @@ import (
 
 	outrunner "github.com/NetwindHQ/gha-outrunner"
 )
+
+const maxStderrLog = 1024
+
+// tailBuffer is an io.Writer that keeps the last maxStderrLog bytes of output.
+type tailBuffer struct {
+	buf []byte
+	max int
+}
+
+func (t *tailBuffer) Write(p []byte) (int, error) {
+	t.buf = append(t.buf, p...)
+	if len(t.buf) > t.max {
+		t.buf = t.buf[len(t.buf)-t.max:]
+	}
+	return len(p), nil
+}
+
+func (t *tailBuffer) String() string {
+	return string(t.buf)
+}
+
+// stderrLog writes stderr to both a file and an in-memory tail buffer.
+type stderrLog struct {
+	file *os.File
+	tail *tailBuffer
+	w    io.Writer
+}
+
+func newStderrLog(name, label string) (*stderrLog, error) {
+	path := filepath.Join(os.TempDir(), fmt.Sprintf("outrunner-%s-%s.log", label, name))
+	f, err := os.Create(path)
+	if err != nil {
+		return nil, fmt.Errorf("create stderr log %s: %w", path, err)
+	}
+	tail := &tailBuffer{max: maxStderrLog}
+	return &stderrLog{file: f, tail: tail, w: io.MultiWriter(f, tail)}, nil
+}
+
+func (s *stderrLog) Write(p []byte) (int, error) { return s.w.Write(p) }
+func (s *stderrLog) Path() string                { return s.file.Name() }
+func (s *stderrLog) Tail() string                { return strings.TrimSpace(s.tail.String()) }
+
+func (s *stderrLog) Close() {
+	_ = s.file.Close()
+}
+
+// CleanupFile removes the log file (call on success when there's nothing to debug).
+func (s *stderrLog) CleanupFile() {
+	_ = s.file.Close()
+	_ = os.Remove(s.file.Name())
+}
 
 // Provisioner creates ephemeral Tart VMs as GitHub Actions runners.
 // Uses `tart exec` via the guest agent for command execution.
@@ -66,22 +120,7 @@ func (t *Provisioner) Start(ctx context.Context, req *outrunner.RunnerRequest) e
 			args = append(args, "--dir="+dir)
 		}
 		args = append(args, req.Name)
-		cmd := exec.CommandContext(runCtx, "tart", args...)
-		if err := cmd.Start(); err != nil {
-			if runCtx.Err() == nil {
-				t.logger.Error("Failed to start VM",
-					slog.String("name", req.Name),
-					slog.String("error", err.Error()),
-				)
-			}
-			return
-		}
-		if err := cmd.Wait(); err != nil && runCtx.Err() == nil {
-			t.logger.Error("VM exited unexpectedly",
-				slog.String("name", req.Name),
-				slog.String("error", err.Error()),
-			)
-		}
+		t.runAndLog(runCtx, req.Name, "vm", args)
 	}()
 
 	// 4. Wait for guest agent
@@ -103,28 +142,49 @@ func (t *Provisioner) Start(ctx context.Context, req *outrunner.RunnerRequest) e
 	)
 
 	go func() {
-		cmd := exec.CommandContext(runCtx, "tart", "exec", req.Name,
-			runnerCmd, "--jitconfig", req.JITConfig,
-		)
-		if err := cmd.Start(); err != nil {
-			if runCtx.Err() == nil {
-				t.logger.Error("Failed to start runner",
-					slog.String("name", req.Name),
-					slog.String("error", err.Error()),
-				)
-			}
-			return
-		}
-		if err := cmd.Wait(); err != nil && runCtx.Err() == nil {
-			t.logger.Error("Runner exited with error",
-				slog.String("name", req.Name),
-				slog.String("error", err.Error()),
-			)
-		}
+		t.runAndLog(runCtx, req.Name, "runner",
+			[]string{"exec", req.Name, runnerCmd, "--jitconfig", req.JITConfig})
 	}()
 
 	t.logger.Info("Runner started in VM", slog.String("name", req.Name))
 	return nil
+}
+
+// runAndLog runs a tart command, streaming stderr to a temp file.
+// On failure it logs the last 1KB of stderr inline plus the full log path.
+// On success it removes the log file.
+func (t *Provisioner) runAndLog(ctx context.Context, name, label string, args []string) {
+	stderr, err := newStderrLog(name, label)
+	if err != nil {
+		t.logger.Error("Failed to create stderr log",
+			slog.String("name", name),
+			slog.String("error", err.Error()),
+		)
+		return
+	}
+	cmd := exec.CommandContext(ctx, "tart", args...)
+	cmd.Stderr = stderr
+	if err := cmd.Start(); err != nil {
+		stderr.CleanupFile()
+		if ctx.Err() == nil {
+			t.logger.Error("Failed to start tart "+label,
+				slog.String("name", name),
+				slog.String("error", err.Error()),
+			)
+		}
+		return
+	}
+	if err := cmd.Wait(); err != nil && ctx.Err() == nil {
+		stderr.Close()
+		t.logger.Error("Tart "+label+" exited with error",
+			slog.String("name", name),
+			slog.String("error", err.Error()),
+			slog.String("stderr", stderr.Tail()),
+			slog.String("log", stderr.Path()),
+		)
+	} else {
+		stderr.CleanupFile()
+	}
 }
 
 func (t *Provisioner) Stop(ctx context.Context, name string) error {
